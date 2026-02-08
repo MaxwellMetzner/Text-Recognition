@@ -1,0 +1,19 @@
+{
+  "name": "text-recognition-app",
+  "version": "1.0.0",
+  "description": "Advanced OCR application with drag-drop, clipboard support, and GPU acceleration",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev"
+  },
+  "keywords": ["ocr", "text-recognition", "electron", "tesseract", "easyocr"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "electron": "^28.0.0"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0"
+  }
+}

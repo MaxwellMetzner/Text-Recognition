@@ -1,0 +1,19 @@
+# Python Dependencies for Advanced OCR Application
+
+# Core OCR Engines
+pytesseract>=0.3.10
+easyocr>=1.7.0
+paddleocr>=2.7.0
+paddlepaddle-gpu>=2.5.0  # Use paddlepaddle (CPU version) if no NVIDIA GPU
+
+# Image Processing
+Pillow>=10.0.0
+opencv-python>=4.8.0
+numpy>=1.24.0
+
+# Deep Learning (for GPU acceleration)
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Optional: for better performance
+scikit-image>=0.21.0
