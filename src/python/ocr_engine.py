@@ -15,7 +15,10 @@ import argparse
 import json
 import math
 import os
+import platform
 import re
+import shutil
+import subprocess
 import sys
 import tempfile
 import traceback
@@ -114,6 +117,276 @@ def check_gpu_availability() -> bool:
         return torch.cuda.is_available()
     except Exception:
         return False
+
+
+def get_package_version(*package_names: str) -> str | None:
+    """Return the first available installed package version."""
+    try:
+        from importlib.metadata import PackageNotFoundError, version
+    except ImportError:
+        return None
+
+    for package_name in package_names:
+        try:
+            return version(package_name)
+        except PackageNotFoundError:
+            continue
+        except Exception:
+            continue
+    return None
+
+
+def base_runtime_check(
+    check_id: str,
+    label: str,
+    probe: str,
+    package_names: tuple[str, ...] = (),
+) -> dict[str, Any]:
+    return {
+        'id': check_id,
+        'label': label,
+        'probe': probe,
+        'version': get_package_version(*package_names) if package_names else None,
+        'importable': False,
+        'cpuUsable': False,
+        'cudaWheel': False,
+        'cudaAvailable': False,
+        'cudaUsable': False,
+        'deviceCount': 0,
+        'devices': [],
+        'details': [],
+    }
+
+
+def collect_torch_diagnostics() -> dict[str, Any]:
+    diagnostics = base_runtime_check('torch', 'PyTorch', 'import + CUDA tensor test', ('torch',))
+
+    try:
+        import torch
+
+        diagnostics['importable'] = True
+        diagnostics['cpuUsable'] = True
+        diagnostics['version'] = diagnostics['version'] or getattr(torch, '__version__', None)
+        build_cuda = getattr(getattr(torch, 'version', None), 'cuda', None)
+        diagnostics['cudaWheel'] = bool(build_cuda)
+        diagnostics['cudaVersion'] = build_cuda
+
+        try:
+            diagnostics['cudaAvailable'] = bool(torch.cuda.is_available())
+            diagnostics['deviceCount'] = int(torch.cuda.device_count()) if diagnostics['cudaAvailable'] else 0
+        except Exception as error:
+            diagnostics['details'].append(f'CUDA availability probe failed: {error}')
+
+        if diagnostics['cudaAvailable']:
+            devices = []
+            for index in range(diagnostics['deviceCount']):
+                try:
+                    devices.append(torch.cuda.get_device_name(index))
+                except Exception as error:
+                    devices.append(f'GPU {index} (name unavailable: {error})')
+            diagnostics['devices'] = devices
+
+            try:
+                tensor = torch.tensor([1.0], device='cuda')
+                diagnostics['cudaUsable'] = abs(float((tensor * 2).item()) - 2.0) < 1e-6
+                diagnostics['details'].append('CUDA tensor test passed')
+            except Exception as error:
+                diagnostics['details'].append(f'CUDA tensor test failed: {error}')
+        elif diagnostics['cudaWheel']:
+            diagnostics['details'].append('CUDA-enabled wheel installed but no CUDA device is available')
+        else:
+            diagnostics['details'].append('CPU-only wheel detected')
+    except Exception as error:
+        diagnostics['error'] = str(error)
+        diagnostics['details'].append(f'Import failed: {error}')
+
+    return diagnostics
+
+
+def collect_paddle_diagnostics() -> dict[str, Any]:
+    diagnostics = base_runtime_check('paddle', 'PaddlePaddle', 'import + optional GPU tensor test', ('paddlepaddle', 'paddlepaddle-gpu'))
+
+    try:
+        import paddle
+
+        diagnostics['importable'] = True
+        diagnostics['cpuUsable'] = True
+        diagnostics['version'] = diagnostics['version'] or getattr(paddle, '__version__', None)
+        compiled_with_cuda = False
+        try:
+            compiled_with_cuda = bool(paddle.device.is_compiled_with_cuda())
+        except Exception as error:
+            diagnostics['details'].append(f'CUDA build probe failed: {error}')
+
+        diagnostics['cudaWheel'] = compiled_with_cuda
+
+        if compiled_with_cuda:
+            try:
+                diagnostics['deviceCount'] = int(paddle.device.cuda.device_count())
+            except Exception as error:
+                diagnostics['details'].append(f'GPU count probe failed: {error}')
+
+        diagnostics['cudaAvailable'] = diagnostics['cudaWheel'] and diagnostics['deviceCount'] > 0
+
+        if diagnostics['cudaAvailable']:
+            previous_device = None
+            try:
+                previous_device = paddle.get_device()
+            except Exception:
+                previous_device = None
+
+            diagnostics['devices'] = [f'GPU {index}' for index in range(diagnostics['deviceCount'])]
+            try:
+                paddle.set_device('gpu:0')
+                tensor = paddle.to_tensor([1.0], dtype='float32')
+                value = float((tensor * 2).numpy()[0])
+                diagnostics['cudaUsable'] = abs(value - 2.0) < 1e-6
+                diagnostics['details'].append('CUDA tensor test passed')
+            except Exception as error:
+                diagnostics['details'].append(f'CUDA tensor test failed: {error}')
+            finally:
+                if previous_device:
+                    try:
+                        paddle.set_device(previous_device)
+                    except Exception:
+                        pass
+        elif diagnostics['cudaWheel']:
+            diagnostics['details'].append('CUDA-enabled wheel installed but no Paddle GPU device is available')
+        else:
+            diagnostics['details'].append('CPU-only Paddle build detected')
+    except Exception as error:
+        diagnostics['error'] = str(error)
+        diagnostics['details'].append(f'Import failed: {error}')
+
+    return diagnostics
+
+
+def collect_module_diagnostics(
+    check_id: str,
+    label: str,
+    module_name: str,
+    package_names: tuple[str, ...],
+    probe: str = 'import',
+) -> dict[str, Any]:
+    diagnostics = base_runtime_check(check_id, label, probe, package_names)
+    try:
+        module = __import__(module_name)
+        diagnostics['importable'] = True
+        diagnostics['cpuUsable'] = True
+        diagnostics['version'] = diagnostics['version'] or getattr(module, '__version__', None)
+        diagnostics['details'].append('Import succeeded')
+    except Exception as error:
+        diagnostics['error'] = str(error)
+        diagnostics['details'].append(f'Import failed: {error}')
+    return diagnostics
+
+
+def collect_tesseract_diagnostics() -> dict[str, Any]:
+    diagnostics = base_runtime_check('tesseract', 'Tesseract OCR', 'import + binary version probe', ('pytesseract',))
+    try:
+        import pytesseract
+
+        resolve_tesseract_path()
+        diagnostics['importable'] = True
+        diagnostics['version'] = diagnostics['version'] or getattr(pytesseract, '__version__', None)
+        version = pytesseract.get_tesseract_version()
+        diagnostics['cpuUsable'] = True
+        diagnostics['details'].append(f'Binary version: {version}')
+        diagnostics['details'].append(f'Executable: {pytesseract.pytesseract.tesseract_cmd or "PATH lookup"}')
+    except Exception as error:
+        diagnostics['error'] = str(error)
+        diagnostics['details'].append(f'Tesseract probe failed: {error}')
+    return diagnostics
+
+
+def collect_nvidia_smi_diagnostics() -> dict[str, Any]:
+    diagnostics = {
+        'available': False,
+        'ok': False,
+        'gpus': [],
+    }
+
+    if not shutil.which('nvidia-smi'):
+        diagnostics['error'] = 'nvidia-smi not found'
+        return diagnostics
+
+    diagnostics['available'] = True
+    try:
+        result = subprocess.run(
+            ['nvidia-smi', '--query-gpu=name,driver_version', '--format=csv,noheader'],
+            capture_output=True,
+            text=True,
+            timeout=8,
+        )
+        diagnostics['ok'] = result.returncode == 0
+        if result.stdout.strip():
+            diagnostics['gpus'] = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+        if result.stderr.strip():
+            diagnostics['stderr'] = result.stderr.strip()
+        if result.returncode != 0 and not diagnostics.get('stderr'):
+            diagnostics['error'] = f'nvidia-smi exited with code {result.returncode}'
+    except Exception as error:
+        diagnostics['error'] = str(error)
+
+    return diagnostics
+
+
+def build_environment_summary(checks: list[dict[str, Any]]) -> str:
+    if any(check.get('cudaUsable') for check in checks):
+        return 'CUDA runtime is usable for at least one installed OCR dependency.'
+    if any(check.get('cudaWheel') for check in checks):
+        return 'CUDA-capable wheels are installed, but no successful CUDA runtime test completed.'
+    if any(check.get('importable') for check in checks):
+        return 'OCR dependencies are importable, but the current environment looks CPU-only.'
+    return 'Core OCR dependencies are missing or not importable in the selected Python environment.'
+
+
+def collect_environment_diagnostics() -> dict[str, Any]:
+    torch_check = collect_torch_diagnostics()
+    paddle_check = collect_paddle_diagnostics()
+    easyocr_check = collect_module_diagnostics('easyocr', 'EasyOCR', 'easyocr', ('easyocr',), 'import only')
+    paddleocr_check = collect_module_diagnostics('paddleocr', 'PaddleOCR', 'paddleocr', ('paddleocr',), 'import only')
+    docling_check = collect_module_diagnostics('docling', 'Docling', 'docling', ('docling',), 'import only')
+    pyzbar_check = collect_module_diagnostics('pyzbar', 'pyzbar', 'pyzbar', ('pyzbar',), 'import only')
+    torchvision_check = collect_module_diagnostics('torchvision', 'torchvision', 'torchvision', ('torchvision',), 'import only')
+    tesseract_check = collect_tesseract_diagnostics()
+
+    if easyocr_check['importable']:
+        if torch_check.get('cudaUsable'):
+            easyocr_check['details'].append('Torch CUDA runtime is available for EasyOCR')
+        elif torch_check.get('cpuUsable'):
+            easyocr_check['details'].append('EasyOCR can fall back to CPU through torch')
+
+    if paddleocr_check['importable']:
+        if paddle_check.get('cudaUsable'):
+            paddleocr_check['details'].append('Paddle CUDA runtime is available for PaddleOCR')
+        elif paddle_check.get('cpuUsable'):
+            paddleocr_check['details'].append('PaddleOCR can fall back to CPU through PaddlePaddle')
+
+    checks = [
+        torch_check,
+        torchvision_check,
+        paddle_check,
+        paddleocr_check,
+        easyocr_check,
+        tesseract_check,
+        pyzbar_check,
+        docling_check,
+    ]
+
+    return {
+        'success': True,
+        'summary': build_environment_summary(checks),
+        'python': {
+            'version': sys.version.split()[0],
+            'executable': sys.executable,
+            'platform': platform.platform(),
+        },
+        'system': {
+            'nvidiaSmi': collect_nvidia_smi_diagnostics(),
+        },
+        'checks': checks,
+    }
 
 
 def normalize_string_list(value: Any) -> list[str]:
@@ -728,7 +1001,10 @@ def render_pdf_pages(path: str, temp_dir: str, options: dict[str, Any]) -> tuple
         try:
             import pymupdf as fitz
         except ImportError as error:
-            raise RuntimeError('PDF support requires PyMuPDF. Install it with pip install PyMuPDF.') from error
+            raise RuntimeError(
+                'PDF support is unavailable because PyMuPDF is missing in the active Python environment. '
+                'Start the app through the launcher or reinstall the project requirements.'
+            ) from error
 
     doc = fitz.open(path)
     rendered_paths: list[str] = []
@@ -2063,6 +2339,10 @@ def parse_cli_arguments(argv: list[str]) -> tuple[list[str], dict[str, Any], boo
 
 
 def main() -> None:
+    if len(sys.argv) >= 2 and sys.argv[1] == '--doctor':
+        print(json.dumps(collect_environment_diagnostics(), ensure_ascii=False))
+        sys.exit(0)
+
     paths, options, raw_json = parse_cli_arguments(sys.argv[1:])
     if not paths:
         print(json.dumps({'error': 'No input path provided', 'success': False}))

@@ -17,6 +17,16 @@ Local Electron app for OCR, scanned PDFs, camera captures, QR/barcode decoding, 
 - Suspicious text review for low confidence words, odd symbols, common OCR confusions, missing punctuation, and broken wrapping.
 - Output styles: plain text, line breaks, paragraphs, columns, tables, form fields, key-values, Markdown, and JSON.
 - Copy actions for text, Markdown, tables, and JSON.
+- Save the current output, OCR text, Markdown, tables, or JSON directly to files from the app.
+- Export every available output format into a new folder in one pass.
+- Create a ZIP bundle containing every available output format in one pass.
+- Reveal the current source file or the latest saved export directly in Explorer.
+- Local scan history sidebar with one-click restore and re-scan for recent work.
+- History search, pin, rename, favorite, and delete controls for managing recent scans.
+- Separate favorites shelf for keeping important outputs outside the rolling history list.
+- History entries now show scan mode and output-style tags.
+- Compare two history entries side by side to spot OCR differences line by line.
+- Export comparison diffs directly as Markdown or JSON.
 - CLI mode backed by the same Python OCR engine used by the app.
 
 ## OCR Stack
@@ -68,6 +78,8 @@ For NVIDIA GPU acceleration, install the PyTorch and PaddlePaddle GPU wheels tha
 ```sh
 npm start
 ```
+
+The included launcher scripts also create or repair `.venv` and install missing Python requirements automatically before starting the app.
 
 Development mode:
 

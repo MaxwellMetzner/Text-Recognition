@@ -175,6 +175,17 @@
                             <textarea id="ignoredWords" rows="3" spellcheck="false"></textarea>
                         </label>
                     </details>
+
+                    <details class="settings-details">
+                        <summary>Environment</summary>
+                        <div class="environment-actions">
+                            <button id="checkRuntimeBtn" class="btn btn-secondary" type="button">Check CUDA &amp; OCR runtime</button>
+                            <span id="runtimeStatus" class="runtime-status">Not checked</span>
+                        </div>
+                        <div id="runtimePanel" class="runtime-panel">
+                            <p class="runtime-placeholder">Run a check to see which CUDA wheels and OCR dependencies are installed and usable.</p>
+                        </div>
+                    </details>
                 </div>
             </section>
 
@@ -194,6 +205,19 @@
                         <button id="copyMarkdownBtn" class="btn btn-secondary" type="button" disabled>Markdown</button>
                         <button id="copyTableBtn" class="btn btn-secondary" type="button" disabled>Table</button>
                         <button id="copyJsonBtn" class="btn btn-secondary" type="button" disabled>JSON</button>
+                        <button id="favoriteOutputBtn" class="btn btn-secondary" type="button" disabled>Favorite Output</button>
+                        <button id="revealSourceBtn" class="btn btn-secondary" type="button" disabled>Reveal Source</button>
+                        <button id="revealSavedBtn" class="btn btn-secondary" type="button" disabled>Reveal Saved</button>
+                        <select id="exportFormat" class="action-select" aria-label="Export format">
+                            <option value="current">Current view</option>
+                            <option value="text">OCR text</option>
+                            <option value="markdown">Markdown</option>
+                            <option value="table">Table</option>
+                            <option value="json">JSON</option>
+                        </select>
+                        <button id="saveOutputBtn" class="btn btn-secondary" type="button" disabled>Save File</button>
+                        <button id="exportAllBtn" class="btn btn-secondary" type="button" disabled>Export All</button>
+                        <button id="exportZipBtn" class="btn btn-secondary" type="button" disabled>Export Zip</button>
                     </div>
                 </div>
 
@@ -201,6 +225,7 @@
                 <div id="detectedCodes" class="insight-panel"></div>
                 <div id="warningPanel" class="insight-panel"></div>
                 <div id="structurePanel" class="insight-panel"></div>
+                <div id="comparePanel" class="compare-panel"></div>
 
                 <div id="resultsContainer" class="results-container">
                     <div class="empty-state">
@@ -209,6 +234,37 @@
                     </div>
                 </div>
             </section>
+
+            <aside class="history-pane">
+                <section class="favorites-section">
+                    <div class="history-header">
+                        <div>
+                            <h2>Favorites</h2>
+                            <span id="favoritesCount">0 saved outputs</span>
+                        </div>
+                        <button id="clearFavoritesBtn" class="btn btn-ghost" type="button" disabled>Clear</button>
+                    </div>
+                    <div id="favoritesList" class="favorites-list">
+                        <div class="history-empty">Favorited outputs will appear here.</div>
+                    </div>
+                </section>
+
+                <section class="history-section">
+                <div class="history-header">
+                    <div>
+                        <h2>History</h2>
+                        <span id="historyCount">0 recent scans</span>
+                    </div>
+                    <div class="history-header-actions">
+                        <input id="historySearch" class="history-search" type="search" placeholder="Search history" aria-label="Search history">
+                        <button id="clearHistoryBtn" class="btn btn-ghost" type="button" disabled>Clear</button>
+                    </div>
+                </div>
+                <div id="historyList" class="history-list">
+                    <div class="history-empty">Recent scans will appear here.</div>
+                </div>
+                </section>
+            </aside>
         </main>
 
         <div id="cameraModal" class="modal" aria-hidden="true">

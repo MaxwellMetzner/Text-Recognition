@@ -9,6 +9,30 @@ import sys
 from pathlib import Path
 
 
+def is_runnable_python(python_command):
+    """Return whether the provided Python executable can be launched."""
+    try:
+        result = subprocess.run([str(python_command), '--version'], capture_output=True, text=True, timeout=10)
+        return result.returncode == 0
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+        return False
+
+
+def get_project_venv_python(project_root):
+    """Return the expected Python executable inside the project virtual environment."""
+    if sys.platform == 'win32':
+        return project_root / '.venv' / 'Scripts' / 'python.exe'
+    return project_root / '.venv' / 'bin' / 'python'
+
+
+def summarize_command_output(result, limit=1200):
+    """Return the most useful tail of a subprocess result for display."""
+    output = (result.stderr or result.stdout or '').strip()
+    if len(output) <= limit:
+        return output
+    return output[-limit:]
+
+
 def check_nodejs():
     """Check if Node.js is installed."""
     try:
@@ -27,8 +51,50 @@ def check_npm():
         return False
 
 
-def check_python_packages():
-    """Check if required Python packages are installed."""
+def ensure_project_python(project_root):
+    """Create or repair the project virtual environment when needed."""
+    venv_dir = project_root / '.venv'
+    venv_python = get_project_venv_python(project_root)
+    if is_runnable_python(venv_python):
+        return str(venv_python)
+
+    base_python = Path(sys.executable)
+    if not is_runnable_python(base_python):
+        return None
+
+    try:
+        command = [str(base_python), '-m', 'venv']
+        if venv_dir.exists():
+            print('Repairing project virtual environment...')
+            command.append('--clear')
+        else:
+            print('Creating project virtual environment...')
+        command.append(str(venv_dir))
+
+        result = subprocess.run(command, cwd=project_root, capture_output=True, text=True, timeout=300)
+        if result.returncode != 0:
+            show_error(
+                'Python Environment Failed',
+                'Could not create or repair the project virtual environment.\n\n'
+                f'{summarize_command_output(result) or "No error details were reported."}',
+            )
+            return None
+    except subprocess.TimeoutExpired:
+        show_error(
+            'Python Environment Failed',
+            'Creating the project virtual environment took too long.\n\n'
+            'Try running the launcher again or recreate .venv manually.',
+        )
+        return None
+    except Exception as error:
+        show_error('Python Environment Failed', f'Could not create or repair the project virtual environment:\n{error}')
+        return None
+
+    return str(venv_python) if is_runnable_python(venv_python) else None
+
+
+def check_python_packages(python_command):
+    """Check if required Python packages are installed in the project environment."""
     packages = {
         'pytesseract': 'pytesseract',
         'easyocr': 'easyocr',
@@ -47,11 +113,58 @@ def check_python_packages():
 
     for module_name, package_name in packages.items():
         try:
-            __import__(module_name)
-        except ImportError:
+            result = subprocess.run(
+                [str(python_command), '-c', f'import {module_name}'],
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
+            if result.returncode != 0:
+                missing.append(package_name)
+        except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
             missing.append(package_name)
 
     return sorted(set(missing))
+
+
+def install_python_dependencies(project_root, python_command):
+    """Install the project's Python dependencies into the project environment."""
+    requirements_path = project_root / 'requirements.txt'
+    if not requirements_path.exists():
+        show_error(
+            'requirements.txt Not Found',
+            f'Could not find the project requirements file at:\n{requirements_path}',
+        )
+        return False
+
+    try:
+        print('Installing Python dependencies...')
+        result = subprocess.run(
+            [str(python_command), '-m', 'pip', 'install', '-r', str(requirements_path)],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=1800,
+        )
+        if result.returncode != 0:
+            show_error(
+                'Python Dependency Installation Failed',
+                'Could not install the project Python dependencies.\n\n'
+                f'{summarize_command_output(result) or "No error details were reported."}',
+            )
+            return False
+    except subprocess.TimeoutExpired:
+        show_error(
+            'Python Dependency Installation Failed',
+            'Installing the project Python dependencies took too long.\n\n'
+            'Try running the launcher again once your network is available.',
+        )
+        return False
+    except Exception as error:
+        show_error('Python Dependency Installation Failed', f'Could not install Python dependencies:\n{error}')
+        return False
+
+    return True
 
 
 def show_error(title, message):
@@ -136,15 +249,28 @@ def main():
 
     print('OK: Node.js found')
 
-    missing_packages = check_python_packages()
+    python_command = ensure_project_python(project_root)
+    if not python_command:
+        return False
+
+    print(f'OK: Using project Python at {python_command}')
+
+    missing_packages = check_python_packages(python_command)
     if missing_packages:
-        show_warning(
-            'Missing Python Packages',
-            'The following packages are not installed:\n'
-            f'{", ".join(missing_packages)}\n\n'
-            'Please run: pip install -r requirements.txt\n\n'
-            'The app may not work properly without these packages.',
-        )
+        print(f'Installing missing Python packages: {", ".join(missing_packages)}')
+        if not install_python_dependencies(project_root, python_command):
+            return False
+
+        remaining_packages = check_python_packages(python_command)
+        if remaining_packages:
+            show_error(
+                'Missing Python Packages',
+                'Some required packages are still unavailable after installation:\n'
+                f'{", ".join(remaining_packages)}',
+            )
+            return False
+
+        print('OK: Python packages installed')
     else:
         print('OK: Python packages found')
 
