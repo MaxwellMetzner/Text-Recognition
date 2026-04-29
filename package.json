@@ -1,13 +1,14 @@
 {
   "name": "text-recognition-app",
   "version": "1.0.0",
-  "description": "Advanced OCR application with drag-drop, clipboard support, and GPU acceleration",
+  "description": "Local OCR studio with document parsing, batch processing, QR/barcode scanning, and camera capture",
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "electron . --dev"
+    "dev": "electron . --dev",
+    "ocr": "python src/python/ocr_engine.py"
   },
-  "keywords": ["ocr", "text-recognition", "electron", "tesseract", "easyocr"],
+  "keywords": ["ocr", "text-recognition", "electron", "tesseract", "easyocr", "paddleocr", "docling", "barcode"],
   "author": "",
   "license": "MIT",
   "dependencies": {

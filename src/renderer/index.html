@@ -3,99 +3,227 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Text Recognition</title>
+    <title>Text Recognition Studio</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🔍 Advanced Text Recognition</h1>
-            <p class="subtitle">Multi-engine OCR with GPU acceleration</p>
+    <div class="app-shell">
+        <header class="app-header">
+            <div>
+                <h1>Text Recognition Studio</h1>
+                <p class="subtitle">Local OCR, document parsing, code scanning, and batch extraction</p>
+            </div>
+            <div class="status-strip">
+                <span id="engineStatus">Idle</span>
+                <span id="queueStatus">0 files</span>
+            </div>
         </header>
 
-        <div class="main-content">
-            <!-- Left Panel: Image Upload -->
-            <div class="left-panel">
-                <div class="upload-section">
-                    <div id="dropZone" class="drop-zone">
-                        <div class="drop-zone-content">
-                            <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                <polyline points="17 8 12 3 7 8"></polyline>
-                                <line x1="12" y1="3" x2="12" y2="15"></line>
-                            </svg>
-                            <p class="primary-text">Drag & Drop Image Here</p>
-                            <p class="secondary-text">or</p>
-                            <button id="browseBtn" class="btn btn-primary">Browse Files</button>
-                            <button id="pasteBtn" class="btn btn-secondary">Paste from Clipboard</button>
-                            <input type="file" id="fileInput" accept="image/*" style="display: none;">
-                        </div>
-                    </div>
+        <main class="workspace">
+            <section class="input-pane">
+                <div class="input-toolbar">
+                    <button id="browseBtn" class="btn btn-primary" type="button">
+                        <span class="btn-icon">+</span>
+                        Files
+                    </button>
+                    <button id="folderBtn" class="btn btn-secondary" type="button">
+                        <span class="btn-icon">F</span>
+                        Folder
+                    </button>
+                    <button id="pasteBtn" class="btn btn-secondary" type="button">
+                        <span class="btn-icon">P</span>
+                        Paste
+                    </button>
+                    <button id="cameraBtn" class="btn btn-secondary" type="button">
+                        <span class="btn-icon">C</span>
+                        Camera
+                    </button>
+                    <input type="file" id="fileInput" multiple accept=".png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp,.heic,.heif,.pdf,image/*,application/pdf" title="Select files to scan">
+                    <input type="file" id="folderInput" webkitdirectory directory multiple title="Select folder to scan">
+                </div>
 
-                    <div id="imagePreview" class="image-preview" style="display: none;">
-                        <img id="previewImg" alt="Preview">
-                        <button id="clearBtn" class="btn-clear">✕</button>
-                    </div>
-
-                    <div id="processingIndicator" class="processing" style="display: none;">
-                        <div class="spinner"></div>
-                        <p>Processing image with multiple OCR engines...</p>
-                        <p class="small-text">This may take a moment for best accuracy</p>
+                <div id="dropZone" class="drop-zone">
+                    <div class="drop-zone-content">
+                        <div class="drop-icon">T</div>
+                        <p class="primary-text">Drop images, PDFs, or folders</p>
+                        <p class="secondary-text">PNG, JPG, TIFF, HEIC, scanned PDFs, and batch folders</p>
                     </div>
                 </div>
-            </div>
 
-            <!-- Right Panel: Results -->
-            <div class="right-panel">
-                <div class="results-section">
-                    <div class="results-header">
-                        <h2>Extracted Text</h2>
-                        <div class="header-actions">
-                            <button id="copyBtn" class="btn btn-success" disabled>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                                </svg>
-                                Copy Text
-                            </button>
+                <div id="previewPanel" class="preview-panel">
+                    <div class="preview-head">
+                        <div>
+                            <strong id="previewName">No file selected</strong>
+                            <span id="regionStatus">Full page</span>
+                        </div>
+                        <button id="clearBtn" class="icon-btn" type="button" title="Clear">x</button>
+                    </div>
+                    <div id="imagePreview" class="image-preview">
+                        <img id="previewImg" alt="Preview">
+                        <div id="previewPlaceholder" class="preview-placeholder">Document selected</div>
+                        <div id="selectionOverlay" class="selection-overlay">
+                            <div id="selectionBox" class="selection-box"></div>
                         </div>
                     </div>
+                    <div class="region-actions">
+                        <button id="selectRegionBtn" class="btn btn-secondary" type="button">Select Region</button>
+                        <button id="scanRegionBtn" class="btn btn-primary" type="button" disabled>OCR Region</button>
+                        <button id="copyRegionBtn" class="btn btn-secondary" type="button" disabled>Copy Region</button>
+                        <button id="clearRegionBtn" class="btn btn-ghost" type="button" disabled>Clear Region</button>
+                    </div>
+                </div>
 
-                    <div id="resultsContainer" class="results-container">
-                        <div class="empty-state">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                <polyline points="14 2 14 8 20 8"></polyline>
-                                <line x1="16" y1="13" x2="8" y2="13"></line>
-                                <line x1="16" y1="17" x2="8" y2="17"></line>
-                                <polyline points="10 9 9 9 8 9"></polyline>
-                            </svg>
-                            <p>Upload an image to extract text</p>
-                            <p class="small-text">Supports: PNG, JPG, JPEG, BMP, TIFF</p>
-                        </div>
+                <div id="processingIndicator" class="processing">
+                    <div class="spinner"></div>
+                    <div>
+                        <strong>Scanning</strong>
+                        <span id="processingDetail">Preparing OCR pipeline...</span>
+                    </div>
+                </div>
+
+                <div class="settings-panel">
+                    <div class="settings-row compact">
+                        <label>
+                            <span>Mode</span>
+                            <select id="ocrMode">
+                                <option value="fast">Fast</option>
+                                <option value="balanced">Balanced</option>
+                                <option value="best" selected>Best</option>
+                                <option value="document">Document AI</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Output</span>
+                            <select id="outputStyle">
+                                <option value="plain">Plain text</option>
+                                <option value="line_breaks">Line breaks</option>
+                                <option value="paragraphs" selected>Paragraphs</option>
+                                <option value="columns">Columns</option>
+                                <option value="tables">Tables</option>
+                                <option value="form_fields">Form fields</option>
+                                <option value="key_values">Key-values</option>
+                                <option value="markdown">Markdown</option>
+                                <option value="json">JSON</option>
+                            </select>
+                        </label>
                     </div>
 
-                    <div id="metadata" class="metadata" style="display: none;">
-                        <div class="metadata-item">
-                            <span class="label">OCR Engine:</span>
-                            <span id="methodUsed" class="value">-</span>
+                    <div class="settings-row compact">
+                        <label>
+                            <span>Language</span>
+                            <select id="languageMode">
+                                <option value="manual">Manual</option>
+                                <option value="auto">Auto-detect</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Selected</span>
+                            <select id="languageSelect" multiple size="4">
+                                <option value="en" selected>English</option>
+                                <option value="es">Spanish</option>
+                                <option value="fr">French</option>
+                                <option value="de">German</option>
+                                <option value="it">Italian</option>
+                                <option value="pt">Portuguese</option>
+                                <option value="nl">Dutch</option>
+                                <option value="pl">Polish</option>
+                                <option value="ru">Russian</option>
+                                <option value="uk">Ukrainian</option>
+                                <option value="ja">Japanese</option>
+                                <option value="ko">Korean</option>
+                                <option value="zh">Chinese Simplified</option>
+                                <option value="zh_cht">Chinese Traditional</option>
+                                <option value="ar">Arabic</option>
+                                <option value="hi">Hindi</option>
+                                <option value="th">Thai</option>
+                                <option value="el">Greek</option>
+                                <option value="tr">Turkish</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div class="toggle-grid">
+                        <label><input type="checkbox" id="preserveLayout" checked> Preserve layout</label>
+                        <label><input type="checkbox" id="detectCodes" checked> QR/barcodes</label>
+                        <label><input type="checkbox" id="mergeCodesIntoText" checked> Merge code payloads</label>
+                        <label><input type="checkbox" id="useDocling"> Docling parser</label>
+                    </div>
+
+                    <details class="settings-details" open>
+                        <summary>Image Cleanup</summary>
+                        <div class="toggle-grid">
+                            <label><input type="checkbox" data-cleanup="autoRotate" checked> Auto-rotate</label>
+                            <label><input type="checkbox" data-cleanup="deskew" checked> Deskew</label>
+                            <label><input type="checkbox" data-cleanup="cropBorders" checked> Crop borders</label>
+                            <label><input type="checkbox" data-cleanup="denoise" checked> De-noise</label>
+                            <label><input type="checkbox" data-cleanup="contrast" checked> Contrast</label>
+                            <label><input type="checkbox" data-cleanup="sharpen"> Sharpen</label>
+                            <label><input type="checkbox" data-cleanup="binarize"> Binarize</label>
+                            <label><input type="checkbox" data-cleanup="removeShadows" checked> Remove shadows</label>
+                            <label><input type="checkbox" data-cleanup="detectPageBoundaries" checked> Page boundaries</label>
                         </div>
-                        <div class="metadata-item">
-                            <span class="label">Confidence:</span>
-                            <span id="confidenceScore" class="value">-</span>
-                        </div>
-                        <div class="metadata-item">
-                            <span class="label">Characters:</span>
-                            <span id="charCount" class="value">0</span>
+                    </details>
+
+                    <details class="settings-details">
+                        <summary>Dictionaries</summary>
+                        <label class="textarea-label">
+                            <span>Custom words</span>
+                            <textarea id="customWords" rows="3" spellcheck="false"></textarea>
+                        </label>
+                        <label class="textarea-label">
+                            <span>Ignored warning words</span>
+                            <textarea id="ignoredWords" rows="3" spellcheck="false"></textarea>
+                        </label>
+                    </details>
+                </div>
+            </section>
+
+            <section class="results-pane">
+                <div class="results-header">
+                    <div>
+                        <h2>Output</h2>
+                        <div id="metadata" class="metadata">
+                            <span id="methodUsed">-</span>
+                            <span id="confidenceScore">-</span>
+                            <span id="languageDetected">-</span>
+                            <span id="charCount">0 chars</span>
                         </div>
                     </div>
+                    <div class="copy-actions">
+                        <button id="copyBtn" class="btn btn-success" type="button" disabled>Copy Text</button>
+                        <button id="copyMarkdownBtn" class="btn btn-secondary" type="button" disabled>Markdown</button>
+                        <button id="copyTableBtn" class="btn btn-secondary" type="button" disabled>Table</button>
+                        <button id="copyJsonBtn" class="btn btn-secondary" type="button" disabled>JSON</button>
+                    </div>
+                </div>
+
+                <div id="batchPanel" class="batch-panel"></div>
+                <div id="detectedCodes" class="insight-panel"></div>
+                <div id="warningPanel" class="insight-panel"></div>
+                <div id="structurePanel" class="insight-panel"></div>
+
+                <div id="resultsContainer" class="results-container">
+                    <div class="empty-state">
+                        <div class="empty-icon">OCR</div>
+                        <p>Ready for a document</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <div id="cameraModal" class="modal" aria-hidden="true">
+            <div class="modal-body">
+                <div class="modal-head">
+                    <h2>Camera Capture</h2>
+                    <button id="closeCameraBtn" class="icon-btn" type="button" title="Close">x</button>
+                </div>
+                <video id="cameraVideo" autoplay></video>
+                <div class="modal-actions">
+                    <button id="captureBtn" class="btn btn-primary" type="button">Capture</button>
+                    <button id="cancelCameraBtn" class="btn btn-secondary" type="button">Cancel</button>
                 </div>
             </div>
         </div>
-
-        <footer>
-            <p>Powered by Tesseract OCR, EasyOCR & PaddleOCR | GPU Accelerated</p>
-        </footer>
     </div>
 
     <script src="renderer.js"></script>

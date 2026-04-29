@@ -1,19 +1,26 @@
-# Python Dependencies for Advanced OCR Application
+# Python dependencies for Text Recognition Studio
 
-# Core OCR Engines
-pytesseract>=0.3.10
-easyocr>=1.7.0
-paddleocr>=2.7.0
-paddlepaddle-gpu>=2.5.0  # Use paddlepaddle (CPU version) if no NVIDIA GPU
+# Core OCR engines
+pytesseract>=0.3.13
+easyocr>=1.7.2
+paddleocr>=3.3.0
+paddlepaddle>=3.0.0
 
-# Image Processing
-Pillow>=10.0.0
-opencv-python>=4.8.0
-numpy>=1.24.0
+# Optional document AI parser used by Document AI mode
+docling>=2.73.0
 
-# Deep Learning (for GPU acceleration)
-torch>=2.0.0
-torchvision>=0.15.0
+# Image and document processing
+Pillow>=10.4.0
+pillow-heif>=0.22.0
+opencv-python>=4.10.0
+numpy>=1.26.0
+PyMuPDF>=1.27.0
+scikit-image>=0.24.0
 
-# Optional: for better performance
-scikit-image>=0.21.0
+# QR / barcode decoding
+pyzbar>=0.1.9
+
+# Language detection and GPU-aware OCR support
+langdetect>=1.0.9
+torch>=2.3.0
+torchvision>=0.18.0
