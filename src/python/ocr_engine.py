@@ -840,11 +840,22 @@ def auto_rotate_with_osd(image: Any) -> tuple[Any, str | None]:
         resolve_tesseract_path()
         rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         osd = pytesseract.image_to_osd(rgb)
-        match = re.search(r'Rotate:\s+(\d+)', osd)
-        if not match:
+        rotation_match = re.search(r'Rotate:\s+(\d+)', osd)
+        confidence_match = re.search(r'Orientation confidence:\s+([0-9.]+)', osd)
+        if not rotation_match:
             return image, None
-        rotation = int(match.group(1))
+
+        confidence = 0.0
+        if confidence_match:
+            try:
+                confidence = float(confidence_match.group(1))
+            except ValueError:
+                confidence = 0.0
+
+        rotation = int(rotation_match.group(1))
         if rotation == 0:
+            return image, None
+        if confidence < 8.0:
             return image, None
         return rotate_bound(image, -rotation), f'rotated {rotation} degrees'
     except Exception:
@@ -1476,8 +1487,25 @@ def get_tesseract_psm_values(options: dict[str, Any]) -> list[int]:
     return [6, 4, 3, 11, 12]
 
 
+def get_tesseract_config_variants(
+    options: dict[str, Any], psm: int
+) -> list[tuple[str, str]]:
+    variants = [('', '')]
+    if options.get('ocrMode') == 'fast' and psm in {6, 11}:
+        variants.append(
+            (
+                ' -c load_system_dawg=0 -c load_freq_dawg=0',
+                'dictionary-light',
+            )
+        )
+    return variants
+
+
 def build_tesseract_config(
-    options: dict[str, Any], temp_dir: str | None, psm: int
+    options: dict[str, Any],
+    temp_dir: str | None,
+    psm: int,
+    extra_config: str = '',
 ) -> str:
     config = f'--oem 1 --psm {int(psm)} -c user_defined_dpi=300'
     if options.get('preserveLayout'):
@@ -1489,6 +1517,7 @@ def build_tesseract_config(
         with open(words_path, 'w', encoding='utf-8') as handle:
             handle.write('\n'.join(custom_words))
         config += f' --user-words "{words_path}"'
+    config += extra_config
     config += ' quiet'
     return config
 
@@ -1557,33 +1586,37 @@ def ocr_with_tesseract(
         candidates = []
 
         for psm in get_tesseract_psm_values(options):
-            config = build_tesseract_config(options, temp_dir, psm)
-            data = pytesseract.image_to_data(
-                image,
-                lang=language_codes['tesseract'],
-                output_type=pytesseract.Output.DICT,
-                config=config,
-            )
-
-            detections = extract_tesseract_detections(data, page)
-            if detections:
-                result = build_ocr_result(
-                    '', detections, 0, f'Tesseract OCR (PSM {psm})', options
+            for extra_config, variant_label in get_tesseract_config_variants(
+                options, psm
+            ):
+                config = build_tesseract_config(options, temp_dir, psm, extra_config)
+                method_label = (
+                    f'Tesseract OCR (PSM {psm}, {variant_label})'
+                    if variant_label
+                    else f'Tesseract OCR (PSM {psm})'
                 )
+                data = pytesseract.image_to_data(
+                    image,
+                    lang=language_codes['tesseract'],
+                    output_type=pytesseract.Output.DICT,
+                    config=config,
+                )
+
+                detections = extract_tesseract_detections(data, page)
+                if detections:
+                    result = build_ocr_result('', detections, 0, method_label, options)
+                    if result:
+                        candidates.append(result)
+                        continue
+
+                text = pytesseract.image_to_string(
+                    image,
+                    lang=language_codes['tesseract'],
+                    config=config,
+                ).strip()
+                result = build_ocr_result(text, [], 0, method_label, options)
                 if result:
                     candidates.append(result)
-                    continue
-
-            text = pytesseract.image_to_string(
-                image,
-                lang=language_codes['tesseract'],
-                config=config,
-            ).strip()
-            result = build_ocr_result(
-                text, [], 0, f'Tesseract OCR (PSM {psm})', options
-            )
-            if result:
-                candidates.append(result)
 
         if not candidates:
             return None

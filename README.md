@@ -158,6 +158,8 @@ Text-Recognition/
   requirements.txt
   README.md
   screenshot.jpg
+  scripts/
+    start-electron.js
   src/
     main/
       main.js

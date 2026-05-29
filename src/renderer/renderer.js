@@ -1,4 +1,4 @@
-const { ipcRenderer } = require("electron");
+const { ipcRenderer, webUtils } = require("electron");
 const fs = require("fs");
 const path = require("path");
 
@@ -292,8 +292,9 @@ ipcRenderer.on("environment-result", (event, result) => {
 function handleDrop(event) {
   const paths = [];
   for (const file of Array.from(event.dataTransfer.files || [])) {
-    if (file.path) {
-      paths.push(file.path);
+    const filePath = getNativeFilePath(file);
+    if (filePath) {
+      paths.push(filePath);
     }
   }
   handlePaths(paths);
@@ -301,9 +302,25 @@ function handleDrop(event) {
 
 function handleFileList(fileList) {
   const paths = Array.from(fileList || [])
-    .map((file) => file.path)
+    .map((file) => getNativeFilePath(file))
     .filter(Boolean);
   handlePaths(paths);
+}
+
+function getNativeFilePath(file) {
+  if (!file) {
+    return "";
+  }
+
+  if (webUtils?.getPathForFile) {
+    try {
+      return webUtils.getPathForFile(file);
+    } catch (error) {
+      console.warn("Could not resolve native file path:", error);
+    }
+  }
+
+  return file.path || "";
 }
 
 function handlePaths(paths) {
