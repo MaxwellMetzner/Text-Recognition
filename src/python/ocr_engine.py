@@ -27,6 +27,7 @@ from pathlib import Path
 from statistics import median
 from typing import Any, Callable
 
+os.environ.setdefault('PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK', 'True')
 
 SUPPORTED_IMAGE_EXTENSIONS = {
     '.png',
@@ -44,6 +45,7 @@ SUPPORTED_EXTENSIONS = SUPPORTED_IMAGE_EXTENSIONS | SUPPORTED_DOCUMENT_EXTENSION
 
 DEFAULT_PREPROCESSING = {
     'autoRotate': True,
+    'upscaleSmallText': True,
     'deskew': True,
     'cropBorders': True,
     'denoise': True,
@@ -56,7 +58,7 @@ DEFAULT_PREPROCESSING = {
 
 DEFAULT_OPTIONS = {
     'ocrMode': 'best',
-    'outputStyle': 'paragraphs',
+    'outputStyle': 'line_breaks',
     'preserveLayout': True,
     'detectCodes': True,
     'mergeCodesIntoText': True,
@@ -74,24 +76,114 @@ DEFAULT_OPTIONS = {
 
 LANGUAGE_PRESETS = {
     'en': {'label': 'English', 'paddle': 'en', 'easy': ['en'], 'tesseract': 'eng'},
-    'fr': {'label': 'French', 'paddle': 'fr', 'easy': ['fr', 'en'], 'tesseract': 'fra+eng'},
-    'de': {'label': 'German', 'paddle': 'de', 'easy': ['de', 'en'], 'tesseract': 'deu+eng'},
-    'es': {'label': 'Spanish', 'paddle': 'es', 'easy': ['es', 'en'], 'tesseract': 'spa+eng'},
-    'it': {'label': 'Italian', 'paddle': 'it', 'easy': ['it', 'en'], 'tesseract': 'ita+eng'},
-    'pt': {'label': 'Portuguese', 'paddle': 'pt', 'easy': ['pt', 'en'], 'tesseract': 'por+eng'},
-    'nl': {'label': 'Dutch', 'paddle': 'nl', 'easy': ['nl', 'en'], 'tesseract': 'nld+eng'},
-    'pl': {'label': 'Polish', 'paddle': 'pl', 'easy': ['pl', 'en'], 'tesseract': 'pol+eng'},
-    'ru': {'label': 'Russian', 'paddle': 'ru', 'easy': ['ru', 'en'], 'tesseract': 'rus+eng'},
-    'uk': {'label': 'Ukrainian', 'paddle': 'uk', 'easy': ['uk', 'en'], 'tesseract': 'ukr+eng'},
-    'ja': {'label': 'Japanese', 'paddle': 'japan', 'easy': ['ja', 'en'], 'tesseract': 'jpn+eng'},
-    'ko': {'label': 'Korean', 'paddle': 'korean', 'easy': ['ko', 'en'], 'tesseract': 'kor+eng'},
-    'zh': {'label': 'Chinese Simplified', 'paddle': 'ch', 'easy': ['ch_sim', 'en'], 'tesseract': 'chi_sim+eng'},
-    'zh_cht': {'label': 'Chinese Traditional', 'paddle': 'chinese_cht', 'easy': ['ch_tra', 'en'], 'tesseract': 'chi_tra+eng'},
-    'ar': {'label': 'Arabic', 'paddle': 'ar', 'easy': ['ar', 'en'], 'tesseract': 'ara+eng'},
-    'hi': {'label': 'Hindi', 'paddle': 'hi', 'easy': ['hi', 'en'], 'tesseract': 'hin+eng'},
-    'th': {'label': 'Thai', 'paddle': 'th', 'easy': ['th', 'en'], 'tesseract': 'tha+eng'},
-    'el': {'label': 'Greek', 'paddle': 'el', 'easy': ['el', 'en'], 'tesseract': 'ell+eng'},
-    'tr': {'label': 'Turkish', 'paddle': 'tr', 'easy': ['tr', 'en'], 'tesseract': 'tur+eng'},
+    'fr': {
+        'label': 'French',
+        'paddle': 'fr',
+        'easy': ['fr', 'en'],
+        'tesseract': 'fra+eng',
+    },
+    'de': {
+        'label': 'German',
+        'paddle': 'de',
+        'easy': ['de', 'en'],
+        'tesseract': 'deu+eng',
+    },
+    'es': {
+        'label': 'Spanish',
+        'paddle': 'es',
+        'easy': ['es', 'en'],
+        'tesseract': 'spa+eng',
+    },
+    'it': {
+        'label': 'Italian',
+        'paddle': 'it',
+        'easy': ['it', 'en'],
+        'tesseract': 'ita+eng',
+    },
+    'pt': {
+        'label': 'Portuguese',
+        'paddle': 'pt',
+        'easy': ['pt', 'en'],
+        'tesseract': 'por+eng',
+    },
+    'nl': {
+        'label': 'Dutch',
+        'paddle': 'nl',
+        'easy': ['nl', 'en'],
+        'tesseract': 'nld+eng',
+    },
+    'pl': {
+        'label': 'Polish',
+        'paddle': 'pl',
+        'easy': ['pl', 'en'],
+        'tesseract': 'pol+eng',
+    },
+    'ru': {
+        'label': 'Russian',
+        'paddle': 'ru',
+        'easy': ['ru', 'en'],
+        'tesseract': 'rus+eng',
+    },
+    'uk': {
+        'label': 'Ukrainian',
+        'paddle': 'uk',
+        'easy': ['uk', 'en'],
+        'tesseract': 'ukr+eng',
+    },
+    'ja': {
+        'label': 'Japanese',
+        'paddle': 'japan',
+        'easy': ['ja', 'en'],
+        'tesseract': 'jpn+eng',
+    },
+    'ko': {
+        'label': 'Korean',
+        'paddle': 'korean',
+        'easy': ['ko', 'en'],
+        'tesseract': 'kor+eng',
+    },
+    'zh': {
+        'label': 'Chinese Simplified',
+        'paddle': 'ch',
+        'easy': ['ch_sim', 'en'],
+        'tesseract': 'chi_sim+eng',
+    },
+    'zh_cht': {
+        'label': 'Chinese Traditional',
+        'paddle': 'chinese_cht',
+        'easy': ['ch_tra', 'en'],
+        'tesseract': 'chi_tra+eng',
+    },
+    'ar': {
+        'label': 'Arabic',
+        'paddle': 'ar',
+        'easy': ['ar', 'en'],
+        'tesseract': 'ara+eng',
+    },
+    'hi': {
+        'label': 'Hindi',
+        'paddle': 'hi',
+        'easy': ['hi', 'en'],
+        'tesseract': 'hin+eng',
+    },
+    'th': {
+        'label': 'Thai',
+        'paddle': 'th',
+        'easy': ['th', 'en'],
+        'tesseract': 'tha+eng',
+    },
+    'el': {
+        'label': 'Greek',
+        'paddle': 'el',
+        'easy': ['el', 'en'],
+        'tesseract': 'ell+eng',
+    },
+    'tr': {
+        'label': 'Turkish',
+        'paddle': 'tr',
+        'easy': ['tr', 'en'],
+        'tesseract': 'tur+eng',
+    },
     'auto': {'label': 'Auto', 'paddle': 'en', 'easy': ['en'], 'tesseract': 'eng'},
 }
 
@@ -159,21 +251,27 @@ def base_runtime_check(
 
 
 def collect_torch_diagnostics() -> dict[str, Any]:
-    diagnostics = base_runtime_check('torch', 'PyTorch', 'import + CUDA tensor test', ('torch',))
+    diagnostics = base_runtime_check(
+        'torch', 'PyTorch', 'import + CUDA tensor test', ('torch',)
+    )
 
     try:
         import torch
 
         diagnostics['importable'] = True
         diagnostics['cpuUsable'] = True
-        diagnostics['version'] = diagnostics['version'] or getattr(torch, '__version__', None)
+        diagnostics['version'] = diagnostics['version'] or getattr(
+            torch, '__version__', None
+        )
         build_cuda = getattr(getattr(torch, 'version', None), 'cuda', None)
         diagnostics['cudaWheel'] = bool(build_cuda)
         diagnostics['cudaVersion'] = build_cuda
 
         try:
             diagnostics['cudaAvailable'] = bool(torch.cuda.is_available())
-            diagnostics['deviceCount'] = int(torch.cuda.device_count()) if diagnostics['cudaAvailable'] else 0
+            diagnostics['deviceCount'] = (
+                int(torch.cuda.device_count()) if diagnostics['cudaAvailable'] else 0
+            )
         except Exception as error:
             diagnostics['details'].append(f'CUDA availability probe failed: {error}')
 
@@ -193,7 +291,9 @@ def collect_torch_diagnostics() -> dict[str, Any]:
             except Exception as error:
                 diagnostics['details'].append(f'CUDA tensor test failed: {error}')
         elif diagnostics['cudaWheel']:
-            diagnostics['details'].append('CUDA-enabled wheel installed but no CUDA device is available')
+            diagnostics['details'].append(
+                'CUDA-enabled wheel installed but no CUDA device is available'
+            )
         else:
             diagnostics['details'].append('CPU-only wheel detected')
     except Exception as error:
@@ -204,14 +304,21 @@ def collect_torch_diagnostics() -> dict[str, Any]:
 
 
 def collect_paddle_diagnostics() -> dict[str, Any]:
-    diagnostics = base_runtime_check('paddle', 'PaddlePaddle', 'import + optional GPU tensor test', ('paddlepaddle', 'paddlepaddle-gpu'))
+    diagnostics = base_runtime_check(
+        'paddle',
+        'PaddlePaddle',
+        'import + optional GPU tensor test',
+        ('paddlepaddle', 'paddlepaddle-gpu'),
+    )
 
     try:
         import paddle
 
         diagnostics['importable'] = True
         diagnostics['cpuUsable'] = True
-        diagnostics['version'] = diagnostics['version'] or getattr(paddle, '__version__', None)
+        diagnostics['version'] = diagnostics['version'] or getattr(
+            paddle, '__version__', None
+        )
         compiled_with_cuda = False
         try:
             compiled_with_cuda = bool(paddle.device.is_compiled_with_cuda())
@@ -226,7 +333,9 @@ def collect_paddle_diagnostics() -> dict[str, Any]:
             except Exception as error:
                 diagnostics['details'].append(f'GPU count probe failed: {error}')
 
-        diagnostics['cudaAvailable'] = diagnostics['cudaWheel'] and diagnostics['deviceCount'] > 0
+        diagnostics['cudaAvailable'] = (
+            diagnostics['cudaWheel'] and diagnostics['deviceCount'] > 0
+        )
 
         if diagnostics['cudaAvailable']:
             previous_device = None
@@ -235,7 +344,9 @@ def collect_paddle_diagnostics() -> dict[str, Any]:
             except Exception:
                 previous_device = None
 
-            diagnostics['devices'] = [f'GPU {index}' for index in range(diagnostics['deviceCount'])]
+            diagnostics['devices'] = [
+                f'GPU {index}' for index in range(diagnostics['deviceCount'])
+            ]
             try:
                 paddle.set_device('gpu:0')
                 tensor = paddle.to_tensor([1.0], dtype='float32')
@@ -251,7 +362,9 @@ def collect_paddle_diagnostics() -> dict[str, Any]:
                     except Exception:
                         pass
         elif diagnostics['cudaWheel']:
-            diagnostics['details'].append('CUDA-enabled wheel installed but no Paddle GPU device is available')
+            diagnostics['details'].append(
+                'CUDA-enabled wheel installed but no Paddle GPU device is available'
+            )
         else:
             diagnostics['details'].append('CPU-only Paddle build detected')
     except Exception as error:
@@ -273,7 +386,9 @@ def collect_module_diagnostics(
         module = __import__(module_name)
         diagnostics['importable'] = True
         diagnostics['cpuUsable'] = True
-        diagnostics['version'] = diagnostics['version'] or getattr(module, '__version__', None)
+        diagnostics['version'] = diagnostics['version'] or getattr(
+            module, '__version__', None
+        )
         diagnostics['details'].append('Import succeeded')
     except Exception as error:
         diagnostics['error'] = str(error)
@@ -282,17 +397,23 @@ def collect_module_diagnostics(
 
 
 def collect_tesseract_diagnostics() -> dict[str, Any]:
-    diagnostics = base_runtime_check('tesseract', 'Tesseract OCR', 'import + binary version probe', ('pytesseract',))
+    diagnostics = base_runtime_check(
+        'tesseract', 'Tesseract OCR', 'import + binary version probe', ('pytesseract',)
+    )
     try:
         import pytesseract
 
         resolve_tesseract_path()
         diagnostics['importable'] = True
-        diagnostics['version'] = diagnostics['version'] or getattr(pytesseract, '__version__', None)
+        diagnostics['version'] = diagnostics['version'] or getattr(
+            pytesseract, '__version__', None
+        )
         version = pytesseract.get_tesseract_version()
         diagnostics['cpuUsable'] = True
         diagnostics['details'].append(f'Binary version: {version}')
-        diagnostics['details'].append(f'Executable: {pytesseract.pytesseract.tesseract_cmd or "PATH lookup"}')
+        diagnostics['details'].append(
+            f'Executable: {pytesseract.pytesseract.tesseract_cmd or "PATH lookup"}'
+        )
     except Exception as error:
         diagnostics['error'] = str(error)
         diagnostics['details'].append(f'Tesseract probe failed: {error}')
@@ -320,7 +441,9 @@ def collect_nvidia_smi_diagnostics() -> dict[str, Any]:
         )
         diagnostics['ok'] = result.returncode == 0
         if result.stdout.strip():
-            diagnostics['gpus'] = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+            diagnostics['gpus'] = [
+                line.strip() for line in result.stdout.splitlines() if line.strip()
+            ]
         if result.stderr.strip():
             diagnostics['stderr'] = result.stderr.strip()
         if result.returncode != 0 and not diagnostics.get('stderr'):
@@ -344,24 +467,42 @@ def build_environment_summary(checks: list[dict[str, Any]]) -> str:
 def collect_environment_diagnostics() -> dict[str, Any]:
     torch_check = collect_torch_diagnostics()
     paddle_check = collect_paddle_diagnostics()
-    easyocr_check = collect_module_diagnostics('easyocr', 'EasyOCR', 'easyocr', ('easyocr',), 'import only')
-    paddleocr_check = collect_module_diagnostics('paddleocr', 'PaddleOCR', 'paddleocr', ('paddleocr',), 'import only')
-    docling_check = collect_module_diagnostics('docling', 'Docling', 'docling', ('docling',), 'import only')
-    pyzbar_check = collect_module_diagnostics('pyzbar', 'pyzbar', 'pyzbar', ('pyzbar',), 'import only')
-    torchvision_check = collect_module_diagnostics('torchvision', 'torchvision', 'torchvision', ('torchvision',), 'import only')
+    easyocr_check = collect_module_diagnostics(
+        'easyocr', 'EasyOCR', 'easyocr', ('easyocr',), 'import only'
+    )
+    paddleocr_check = collect_module_diagnostics(
+        'paddleocr', 'PaddleOCR', 'paddleocr', ('paddleocr',), 'import only'
+    )
+    docling_check = collect_module_diagnostics(
+        'docling', 'Docling', 'docling', ('docling',), 'import only'
+    )
+    pyzbar_check = collect_module_diagnostics(
+        'pyzbar', 'pyzbar', 'pyzbar', ('pyzbar',), 'import only'
+    )
+    torchvision_check = collect_module_diagnostics(
+        'torchvision', 'torchvision', 'torchvision', ('torchvision',), 'import only'
+    )
     tesseract_check = collect_tesseract_diagnostics()
 
     if easyocr_check['importable']:
         if torch_check.get('cudaUsable'):
-            easyocr_check['details'].append('Torch CUDA runtime is available for EasyOCR')
+            easyocr_check['details'].append(
+                'Torch CUDA runtime is available for EasyOCR'
+            )
         elif torch_check.get('cpuUsable'):
-            easyocr_check['details'].append('EasyOCR can fall back to CPU through torch')
+            easyocr_check['details'].append(
+                'EasyOCR can fall back to CPU through torch'
+            )
 
     if paddleocr_check['importable']:
         if paddle_check.get('cudaUsable'):
-            paddleocr_check['details'].append('Paddle CUDA runtime is available for PaddleOCR')
+            paddleocr_check['details'].append(
+                'Paddle CUDA runtime is available for PaddleOCR'
+            )
         elif paddle_check.get('cpuUsable'):
-            paddleocr_check['details'].append('PaddleOCR can fall back to CPU through PaddlePaddle')
+            paddleocr_check['details'].append(
+                'PaddleOCR can fall back to CPU through PaddlePaddle'
+            )
 
     checks = [
         torch_check,
@@ -419,7 +560,9 @@ def load_options(raw_options: str | None = None) -> dict[str, Any]:
             pass
 
     mode = str(options.get('ocrMode', 'best')).lower()
-    options['ocrMode'] = mode if mode in {'fast', 'balanced', 'best', 'document'} else 'best'
+    options['ocrMode'] = (
+        mode if mode in {'fast', 'balanced', 'best', 'document'} else 'best'
+    )
 
     style = str(options.get('outputStyle', 'paragraphs')).lower()
     allowed_styles = {
@@ -557,7 +700,9 @@ def to_builtin(value: Any) -> Any:
     return value
 
 
-def normalize_rect(left: float, top: float, right: float, bottom: float) -> dict[str, float]:
+def normalize_rect(
+    left: float, top: float, right: float, bottom: float
+) -> dict[str, float]:
     width = max(0.0, right - left)
     height = max(0.0, bottom - top)
     return {
@@ -582,7 +727,11 @@ def normalize_bbox(points: Any) -> dict[str, float]:
         height = float(points.get('height', 0))
         return normalize_rect(left, top, left + width, top + height)
 
-    if isinstance(points, (list, tuple)) and len(points) == 4 and all(isinstance(item, (int, float)) for item in points):
+    if (
+        isinstance(points, (list, tuple))
+        and len(points) == 4
+        and all(isinstance(item, (int, float)) for item in points)
+    ):
         left, top, right, bottom = points
         return normalize_rect(float(left), float(top), float(right), float(bottom))
 
@@ -607,13 +756,14 @@ def normalize_detection(
     page: int = 1,
     engine: str = '',
     level: str = 'line',
+    source_index: int | None = None,
 ) -> dict[str, Any] | None:
     clean_text = str(text or '').strip()
     if not clean_text:
         return None
 
     rect = normalize_bbox(bbox)
-    return {
+    detection = {
         'text': clean_text,
         'confidence': clamp_confidence(confidence),
         'bbox': rect,
@@ -622,6 +772,9 @@ def normalize_detection(
         'engine': engine,
         'level': level,
     }
+    if source_index is not None:
+        detection['sourceIndex'] = source_index
+    return detection
 
 
 def image_to_cv2(image: Any) -> Any:
@@ -655,7 +808,9 @@ def open_image_with_orientation(path: str) -> Any:
     return ImageOps.exif_transpose(image).convert('RGB')
 
 
-def rotate_bound(image: Any, angle: float, border_value: tuple[int, int, int] = (255, 255, 255)) -> Any:
+def rotate_bound(
+    image: Any, angle: float, border_value: tuple[int, int, int] = (255, 255, 255)
+) -> Any:
     import cv2
     import numpy as np
 
@@ -668,7 +823,13 @@ def rotate_bound(image: Any, angle: float, border_value: tuple[int, int, int] = 
     new_height = int((height * cos) + (width * sin))
     matrix[0, 2] += (new_width / 2) - center[0]
     matrix[1, 2] += (new_height / 2) - center[1]
-    return cv2.warpAffine(image, matrix, (new_width, new_height), flags=cv2.INTER_CUBIC, borderValue=border_value)
+    return cv2.warpAffine(
+        image,
+        matrix,
+        (new_width, new_height),
+        flags=cv2.INTER_CUBIC,
+        borderValue=border_value,
+    )
 
 
 def auto_rotate_with_osd(image: Any) -> tuple[Any, str | None]:
@@ -719,11 +880,18 @@ def four_point_transform(image: Any, points: Any) -> Any:
         return image
 
     destination = np.array(
-        [[0, 0], [max_width - 1, 0], [max_width - 1, max_height - 1], [0, max_height - 1]],
+        [
+            [0, 0],
+            [max_width - 1, 0],
+            [max_width - 1, max_height - 1],
+            [0, max_height - 1],
+        ],
         dtype='float32',
     )
     matrix = cv2.getPerspectiveTransform(rect, destination)
-    return cv2.warpPerspective(image, matrix, (max_width, max_height), borderValue=(255, 255, 255))
+    return cv2.warpPerspective(
+        image, matrix, (max_width, max_height), borderValue=(255, 255, 255)
+    )
 
 
 def detect_and_warp_page(image: Any) -> tuple[Any, str | None]:
@@ -732,13 +900,19 @@ def detect_and_warp_page(image: Any) -> tuple[Any, str | None]:
         import numpy as np
 
         ratio = image.shape[0] / 900.0
-        resized = cv2.resize(image, (int(image.shape[1] / ratio), 900)) if image.shape[0] > 900 else image.copy()
+        resized = (
+            cv2.resize(image, (int(image.shape[1] / ratio), 900))
+            if image.shape[0] > 900
+            else image.copy()
+        )
         scale = ratio if image.shape[0] > 900 else 1.0
         gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
         gray = cv2.GaussianBlur(gray, (5, 5), 0)
         edges = cv2.Canny(gray, 50, 150)
         edges = cv2.dilate(edges, None, iterations=1)
-        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(
+            edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
         if not contours:
             return image, None
 
@@ -746,7 +920,7 @@ def detect_and_warp_page(image: Any) -> tuple[Any, str | None]:
         for contour in sorted(contours, key=cv2.contourArea, reverse=True)[:5]:
             perimeter = cv2.arcLength(contour, True)
             approx = cv2.approxPolyDP(contour, 0.02 * perimeter, True)
-            area = cv2.contourArea(contour) * (scale ** 2)
+            area = cv2.contourArea(contour) * (scale**2)
             if len(approx) == 4 and area > page_area * 0.15:
                 points = approx.reshape(4, 2).astype('float32') * scale
                 return four_point_transform(image, points), 'page boundary corrected'
@@ -776,7 +950,9 @@ def crop_borders(image: Any) -> tuple[Any, str | None]:
 
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         _, thresh = cv2.threshold(gray, 245, 255, cv2.THRESH_BINARY_INV)
-        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(
+            thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
         if not contours:
             return image, None
         x, y, w, h = cv2.boundingRect(max(contours, key=cv2.contourArea))
@@ -804,9 +980,46 @@ def remove_shadows(image: Any) -> Any:
         dilated = cv2.dilate(plane, None, iterations=7)
         background = cv2.medianBlur(dilated, 21)
         diff = 255 - cv2.absdiff(plane, background)
-        normalized = cv2.normalize(diff, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
+        normalized = cv2.normalize(
+            diff, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX
+        )
         normalized_planes.append(normalized)
     return cv2.merge(normalized_planes)
+
+
+def has_uneven_background(image: Any) -> bool:
+    import cv2
+    import numpy as np
+
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    min_side = max(3, min(gray.shape[:2]))
+    max_kernel = max(3, ((min_side // 2) * 2) - 1)
+    kernel_size = min(max(31, int(min_side / 18) | 1), max_kernel)
+    background = cv2.medianBlur(gray, kernel_size)
+    return float(np.std(background)) > 16.0
+
+
+def has_visible_noise(image: Any) -> bool:
+    import cv2
+    import numpy as np
+
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    edges = cv2.Canny(gray, 80, 180)
+    blurred = cv2.GaussianBlur(gray, (3, 3), 0)
+    high_frequency = cv2.absdiff(gray, blurred)
+    non_edge_pixels = high_frequency[edges == 0]
+    if non_edge_pixels.size < 100:
+        return False
+    return float(np.percentile(non_edge_pixels, 95)) > 7.0
+
+
+def is_low_contrast(image: Any) -> bool:
+    import cv2
+    import numpy as np
+
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    low, high = np.percentile(gray, [5, 95])
+    return float(high - low) < 120.0
 
 
 def improve_contrast(image: Any) -> Any:
@@ -853,7 +1066,34 @@ def binarize_image(image: Any) -> Any:
     import cv2
 
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    return cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 35, 11)
+    return cv2.adaptiveThreshold(
+        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 35, 11
+    )
+
+
+def upscale_for_ocr(image: Any) -> tuple[Any, str | None]:
+    import cv2
+
+    height, width = image.shape[:2]
+    longest_side = max(width, height)
+    if longest_side >= 1800:
+        return image, None
+
+    scale = min(2.0, 1800.0 / max(longest_side, 1))
+    if scale < 1.15:
+        return image, None
+
+    resized = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+    return resized, f'upscaled {scale:.2f}x'
+
+
+def add_ocr_border(image: Any, border: int = 12) -> Any:
+    import cv2
+
+    value = 255 if len(image.shape) == 2 else (255, 255, 255)
+    return cv2.copyMakeBorder(
+        image, border, border, border, border, cv2.BORDER_CONSTANT, value=value
+    )
 
 
 def apply_region(image: Any, region: dict[str, Any] | None) -> Any:
@@ -891,7 +1131,9 @@ def apply_region(image: Any, region: dict[str, Any] | None) -> Any:
     return image.crop((left, top, right, bottom))
 
 
-def preprocess_image(path: str, output_path: str, options: dict[str, Any]) -> PreparedPage:
+def preprocess_image(
+    path: str, output_path: str, options: dict[str, Any]
+) -> PreparedPage:
     import cv2
 
     page_number = int(options.get('_pageNumber') or 1)
@@ -916,15 +1158,20 @@ def preprocess_image(path: str, output_path: str, options: dict[str, Any]) -> Pr
         if action:
             actions.append(action)
 
-    if cleanup.get('removeShadows'):
+    if cleanup.get('upscaleSmallText'):
+        cv_image, action = upscale_for_ocr(cv_image)
+        if action:
+            actions.append(action)
+
+    if cleanup.get('removeShadows') and has_uneven_background(cv_image):
         cv_image = remove_shadows(cv_image)
         actions.append('shadows reduced')
 
-    if cleanup.get('denoise'):
+    if cleanup.get('denoise') and has_visible_noise(cv_image):
         cv_image = cv2.fastNlMeansDenoisingColored(cv_image, None, 7, 7, 7, 21)
         actions.append('denoised')
 
-    if cleanup.get('contrast'):
+    if cleanup.get('contrast') and is_low_contrast(cv_image):
         cv_image = improve_contrast(cv_image)
         actions.append('contrast normalized')
 
@@ -941,6 +1188,7 @@ def preprocess_image(path: str, output_path: str, options: dict[str, Any]) -> Pr
         cv_image = binarize_image(cv_image)
         actions.append('binarized')
 
+    cv_image = add_ocr_border(cv_image)
     pil_image = cv2_to_pil(cv_image)
     pil_image.save(output_path, format='PNG')
     width, height = pil_image.size
@@ -994,7 +1242,9 @@ def get_pdf_dpi(options: dict[str, Any]) -> int:
     return 300
 
 
-def render_pdf_pages(path: str, temp_dir: str, options: dict[str, Any]) -> tuple[list[str], str]:
+def render_pdf_pages(
+    path: str, temp_dir: str, options: dict[str, Any]
+) -> tuple[list[str], str]:
     try:
         import fitz
     except ImportError:
@@ -1036,34 +1286,55 @@ def get_easyocr_reader(languages: list[str], use_gpu: bool) -> Any:
 
 
 def get_paddle_ocr(language: str, use_gpu: bool, options: dict[str, Any]) -> Any:
-    cache_key = (language, bool(use_gpu), options.get('ocrMode'))
+    mode = options.get('ocrMode')
+    cache_key = (language, bool(use_gpu), mode, 'stable-engine-v3')
     if cache_key in PADDLE_OCR_ENGINES:
         return PADDLE_OCR_ENGINES[cache_key]
 
     from paddleocr import PaddleOCR
 
     device = 'gpu:0' if use_gpu else 'cpu'
+    use_orientation_classify = mode in {'balanced', 'best', 'document'}
+    common_kwargs = {
+        'lang': language,
+        'ocr_version': 'PP-OCRv5',
+        'device': device,
+        'use_doc_orientation_classify': use_orientation_classify,
+        'use_doc_unwarping': False,
+        'use_textline_orientation': True,
+        'text_det_limit_side_len': 1800 if mode in {'best', 'document'} else 1440,
+        'text_det_limit_type': 'max',
+        'text_det_unclip_ratio': 2.0,
+        'text_rec_score_thresh': 0.0,
+    }
+
+    if not use_gpu:
+        common_kwargs.update(
+            {
+                'engine': 'paddle_static',
+                'engine_config': {
+                    'device_type': 'cpu',
+                    'cpu_threads': min(8, max(2, os.cpu_count() or 4)),
+                    'run_mode': 'paddle',
+                },
+            }
+        )
+
     attempts = [
+        common_kwargs,
+        {
+            **common_kwargs,
+            'use_textline_orientation': False,
+        },
+        {
+            **common_kwargs,
+            'use_doc_orientation_classify': False,
+            'use_doc_unwarping': False,
+        },
         {
             'lang': language,
             'ocr_version': 'PP-OCRv5',
             'device': device,
-            'use_doc_orientation_classify': bool(options['preprocessing'].get('autoRotate')),
-            'use_doc_unwarping': bool(options['preprocessing'].get('detectPageBoundaries')),
-            'use_textline_orientation': True,
-        },
-        {
-            'lang': language,
-            'ocr_version': 'PP-OCRv5',
-            'use_angle_cls': True,
-            'use_gpu': use_gpu,
-            'show_log': False,
-        },
-        {
-            'lang': language,
-            'use_angle_cls': True,
-            'use_gpu': use_gpu,
-            'show_log': False,
         },
     ]
 
@@ -1099,12 +1370,22 @@ def parse_paddle_predict_results(results: Any, page: int) -> list[dict[str, Any]
         data = item.get('res', item)
         texts = data.get('rec_texts') or data.get('texts') or []
         scores = data.get('rec_scores') or data.get('scores') or []
-        boxes = data.get('rec_polys') or data.get('rec_boxes') or data.get('dt_polys') or []
+        boxes = (
+            data.get('rec_polys') or data.get('rec_boxes') or data.get('dt_polys') or []
+        )
 
         for index, text in enumerate(texts):
             confidence = scores[index] if index < len(scores) else 0
             bbox = boxes[index] if index < len(boxes) else None
-            detection = normalize_detection(text, confidence, bbox, page=page, engine='PaddleOCR', level='line')
+            detection = normalize_detection(
+                text,
+                confidence,
+                bbox,
+                page=page,
+                engine='PaddleOCR',
+                level='line',
+                source_index=index,
+            )
             if detection:
                 detections.append(detection)
 
@@ -1114,12 +1395,16 @@ def parse_paddle_predict_results(results: Any, page: int) -> list[dict[str, Any]
 def parse_paddle_ocr_results(results: Any, page: int) -> list[dict[str, Any]]:
     detections: list[dict[str, Any]] = []
     results = to_builtin(results)
-    page_results = results[0] if isinstance(results, list) and results and isinstance(results[0], list) else results
+    page_results = (
+        results[0]
+        if isinstance(results, list) and results and isinstance(results[0], list)
+        else results
+    )
 
     if not isinstance(page_results, list):
         return detections
 
-    for line in page_results:
+    for index, line in enumerate(page_results):
         if not isinstance(line, list) or len(line) < 2:
             continue
         bbox = line[0]
@@ -1130,7 +1415,15 @@ def parse_paddle_ocr_results(results: Any, page: int) -> list[dict[str, Any]]:
         else:
             text = text_result
             confidence = 0
-        detection = normalize_detection(text, confidence, bbox, page=page, engine='PaddleOCR', level='line')
+        detection = normalize_detection(
+            text,
+            confidence,
+            bbox,
+            page=page,
+            engine='PaddleOCR',
+            level='line',
+            source_index=index,
+        )
         if detection:
             detections.append(detection)
 
@@ -1146,27 +1439,49 @@ def build_ocr_result(
 ) -> dict[str, Any] | None:
     rendered_text = text.strip()
     if detections:
-        rendered_text = render_detections(detections, options, options.get('outputStyle', 'paragraphs'))
+        rendered_text = render_detections(
+            detections, options, options.get('outputStyle', 'paragraphs')
+        )
 
     if not rendered_text:
         return None
 
-    confidences = [item['confidence'] for item in detections if item.get('confidence', 0) > 0]
-    average_confidence = sum(confidences) / len(confidences) if confidences else confidence
+    confidences = [
+        item['confidence'] for item in detections if item.get('confidence', 0) > 0
+    ]
+    average_confidence = (
+        sum(confidences) / len(confidences) if confidences else confidence
+    )
     return {
         'text': rendered_text,
         'confidence': clamp_confidence(average_confidence),
         'method': method,
         'detections': detections,
-        'lineCount': len(split_into_lines(detections)) if detections else len(rendered_text.splitlines()),
+        'lineCount': (
+            len(split_into_lines(detections))
+            if detections
+            else len(rendered_text.splitlines())
+        ),
     }
 
 
-def build_tesseract_config(options: dict[str, Any], temp_dir: str | None) -> str:
+def get_tesseract_psm_values(options: dict[str, Any]) -> list[int]:
+    mode = options.get('ocrMode')
+    if options.get('region'):
+        return [6, 7, 13, 11]
+    if mode == 'fast':
+        return [6, 4, 3, 11]
+    if mode == 'balanced':
+        return [6, 4, 3, 11]
+    return [6, 4, 3, 11, 12]
+
+
+def build_tesseract_config(
+    options: dict[str, Any], temp_dir: str | None, psm: int
+) -> str:
+    config = f'--oem 1 --psm {int(psm)} -c user_defined_dpi=300'
     if options.get('preserveLayout'):
-        config = '--oem 3 --psm 3 -c preserve_interword_spaces=1'
-    else:
-        config = '--oem 3 --psm 6'
+        config += ' -c preserve_interword_spaces=1'
 
     custom_words = options.get('customWords') or []
     if custom_words and temp_dir:
@@ -1174,7 +1489,56 @@ def build_tesseract_config(options: dict[str, Any], temp_dir: str | None) -> str
         with open(words_path, 'w', encoding='utf-8') as handle:
             handle.write('\n'.join(custom_words))
         config += f' --user-words "{words_path}"'
+    config += ' quiet'
     return config
+
+
+def should_keep_tesseract_word(text: str, confidence: float) -> bool:
+    clean_text = str(text or '').strip()
+    if not clean_text:
+        return False
+    if confidence >= 25:
+        return True
+    if (
+        confidence >= 15
+        and len(clean_text) >= 3
+        and re.search(r'[A-Za-z0-9]', clean_text)
+    ):
+        return True
+    return False
+
+
+def extract_tesseract_detections(
+    data: dict[str, Any], page: int
+) -> list[dict[str, Any]]:
+    detections = []
+    texts = data.get('text', [])
+    for index, text in enumerate(texts):
+        try:
+            raw_confidence = data.get('conf', ['0'])[index]
+            confidence = float(raw_confidence)
+            if confidence < 0 or not should_keep_tesseract_word(str(text), confidence):
+                continue
+        except (TypeError, ValueError, IndexError):
+            continue
+
+        detection = normalize_detection(
+            text,
+            confidence,
+            {
+                'left': data.get('left', [0])[index],
+                'top': data.get('top', [0])[index],
+                'width': data.get('width', [0])[index],
+                'height': data.get('height', [0])[index],
+            },
+            page=page,
+            engine='Tesseract',
+            level='word',
+            source_index=index,
+        )
+        if detection:
+            detections.append(detection)
+    return detections
 
 
 def ocr_with_tesseract(
@@ -1189,48 +1553,48 @@ def ocr_with_tesseract(
 
         resolve_tesseract_path()
         language_codes = get_language_codes(options)
-        config = build_tesseract_config(options, temp_dir)
         image = Image.open(image_path)
-        data = pytesseract.image_to_data(
-            image,
-            lang=language_codes['tesseract'],
-            output_type=pytesseract.Output.DICT,
-            config=config,
-        )
+        candidates = []
 
-        detections = []
-        texts = data.get('text', [])
-        for index, text in enumerate(texts):
-            detection = normalize_detection(
-                text,
-                data.get('conf', ['0'])[index],
-                {
-                    'left': data.get('left', [0])[index],
-                    'top': data.get('top', [0])[index],
-                    'width': data.get('width', [0])[index],
-                    'height': data.get('height', [0])[index],
-                },
-                page=page,
-                engine='Tesseract',
-                level='word',
+        for psm in get_tesseract_psm_values(options):
+            config = build_tesseract_config(options, temp_dir, psm)
+            data = pytesseract.image_to_data(
+                image,
+                lang=language_codes['tesseract'],
+                output_type=pytesseract.Output.DICT,
+                config=config,
             )
-            if detection:
-                detections.append(detection)
 
-        if detections:
-            return build_ocr_result('', detections, 0, 'Tesseract OCR', options)
+            detections = extract_tesseract_detections(data, page)
+            if detections:
+                result = build_ocr_result(
+                    '', detections, 0, f'Tesseract OCR (PSM {psm})', options
+                )
+                if result:
+                    candidates.append(result)
+                    continue
 
-        text = pytesseract.image_to_string(
-            image,
-            lang=language_codes['tesseract'],
-            config=config,
-        ).strip()
-        return build_ocr_result(text, [], 0, 'Tesseract OCR', options)
+            text = pytesseract.image_to_string(
+                image,
+                lang=language_codes['tesseract'],
+                config=config,
+            ).strip()
+            result = build_ocr_result(
+                text, [], 0, f'Tesseract OCR (PSM {psm})', options
+            )
+            if result:
+                candidates.append(result)
+
+        if not candidates:
+            return None
+        return max(candidates, key=lambda item: score_ocr_result(item, options))
     except Exception:
         return None
 
 
-def ocr_with_easyocr(image_path: str, options: dict[str, Any], use_gpu: bool, page: int = 1) -> dict[str, Any] | None:
+def ocr_with_easyocr(
+    image_path: str, options: dict[str, Any], use_gpu: bool, page: int = 1
+) -> dict[str, Any] | None:
     try:
         language_codes = get_language_codes(options)
         try:
@@ -1238,10 +1602,35 @@ def ocr_with_easyocr(image_path: str, options: dict[str, Any], use_gpu: bool, pa
         except Exception:
             reader = get_easyocr_reader(['en'], use_gpu)
 
-        results = reader.readtext(image_path, detail=1, paragraph=False)
+        mode = options.get('ocrMode')
+        results = reader.readtext(
+            image_path,
+            detail=1,
+            paragraph=False,
+            decoder='beamsearch' if mode in {'best', 'document'} else 'greedy',
+            beamWidth=8,
+            batch_size=1,
+            workers=0,
+            contrast_ths=0.05,
+            adjust_contrast=0.7,
+            text_threshold=0.6,
+            low_text=0.3,
+            link_threshold=0.4,
+            canvas_size=3200,
+            mag_ratio=1.5 if mode in {'best', 'document'} else 1.2,
+            add_margin=0.08,
+        )
         detections = []
-        for bbox, text, confidence in results:
-            detection = normalize_detection(text, confidence, bbox, page=page, engine='EasyOCR', level='line')
+        for index, (bbox, text, confidence) in enumerate(results):
+            detection = normalize_detection(
+                text,
+                confidence,
+                bbox,
+                page=page,
+                engine='EasyOCR',
+                level='line',
+                source_index=index,
+            )
             if detection:
                 detections.append(detection)
 
@@ -1254,7 +1643,9 @@ def ocr_with_easyocr(image_path: str, options: dict[str, Any], use_gpu: bool, pa
         return None
 
 
-def ocr_with_paddleocr(image_path: str, options: dict[str, Any], use_gpu: bool, page: int = 1) -> dict[str, Any] | None:
+def ocr_with_paddleocr(
+    image_path: str, options: dict[str, Any], use_gpu: bool, page: int = 1
+) -> dict[str, Any] | None:
     try:
         language_codes = get_language_codes(options)
         ocr = get_paddle_ocr(language_codes['paddle'], use_gpu, options)
@@ -1268,7 +1659,9 @@ def ocr_with_paddleocr(image_path: str, options: dict[str, Any], use_gpu: bool, 
 
         if not detections and hasattr(ocr, 'ocr'):
             try:
-                detections = parse_paddle_ocr_results(ocr.ocr(image_path, cls=True), page)
+                detections = parse_paddle_ocr_results(
+                    ocr.ocr(image_path, cls=True), page
+                )
             except TypeError:
                 detections = parse_paddle_ocr_results(ocr.ocr(image_path), page)
 
@@ -1281,6 +1674,28 @@ def ocr_with_paddleocr(image_path: str, options: dict[str, Any], use_gpu: bool, 
         return None
 
 
+def call_docling_export(document: Any, method_name: str, **kwargs: Any) -> str:
+    exporter = getattr(document, method_name)
+    try:
+        return exporter(**kwargs)
+    except TypeError:
+        return exporter()
+
+
+def export_docling_text(document: Any, style: str) -> str:
+    if style in {'markdown', 'tables', 'document'}:
+        return call_docling_export(
+            document, 'export_to_markdown', traverse_pictures=True
+        )
+
+    try:
+        return call_docling_export(document, 'export_to_text', traverse_pictures=True)
+    except Exception:
+        return call_docling_export(
+            document, 'export_to_markdown', traverse_pictures=True
+        )
+
+
 def extract_with_docling(path: str, options: dict[str, Any]) -> dict[str, Any] | None:
     if not (options.get('useDocling') or options.get('ocrMode') == 'document'):
         return None
@@ -1291,14 +1706,7 @@ def extract_with_docling(path: str, options: dict[str, Any]) -> dict[str, Any] |
         converter = DocumentConverter()
         result = converter.convert(path)
         document = result.document
-
-        if options.get('outputStyle') in {'markdown', 'tables', 'document'}:
-            text = document.export_to_markdown()
-        else:
-            try:
-                text = document.export_to_text()
-            except Exception:
-                text = document.export_to_markdown()
+        text = export_docling_text(document, options.get('outputStyle', 'paragraphs'))
 
         json_data = None
         for attr in ('export_to_dict', 'model_dump'):
@@ -1334,7 +1742,9 @@ def split_into_lines(detections: list[dict[str, Any]]) -> list[dict[str, Any]]:
     all_lines: list[dict[str, Any]] = []
     for page, page_items in sorted(pages.items()):
         page_items.sort(key=lambda item: (item['centerY'], item['bbox']['left']))
-        heights = [item['bbox']['height'] for item in page_items if item['bbox']['height'] > 0]
+        heights = [
+            item['bbox']['height'] for item in page_items if item['bbox']['height'] > 0
+        ]
         line_threshold = max(8.0, median(heights) * 0.62) if heights else 12.0
         lines: list[dict[str, Any]] = []
 
@@ -1349,13 +1759,21 @@ def split_into_lines(detections: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     break
 
             if not placed:
-                lines.append({'page': page, 'centerY': detection['centerY'], 'items': [detection]})
+                lines.append(
+                    {
+                        'page': page,
+                        'centerY': detection['centerY'],
+                        'items': [detection],
+                    }
+                )
 
         for line in lines:
             line['items'].sort(key=lambda item: item['bbox']['left'])
             line['bbox'] = union_bbox([item['bbox'] for item in line['items']])
 
-        lines.sort(key=lambda line: (line['page'], line['bbox']['top'], line['bbox']['left']))
+        lines.sort(
+            key=lambda line: (line['page'], line['bbox']['top'], line['bbox']['left'])
+        )
         all_lines.extend(lines)
 
     return all_lines
@@ -1395,7 +1813,9 @@ def join_line_items(items: list[dict[str, Any]], preserve_layout: bool = True) -
     return ''.join(pieces).strip()
 
 
-def lines_with_text(detections: list[dict[str, Any]], preserve_layout: bool = True) -> list[dict[str, Any]]:
+def lines_with_text(
+    detections: list[dict[str, Any]], preserve_layout: bool = True
+) -> list[dict[str, Any]]:
     lines = split_into_lines(detections)
     for line in lines:
         line['text'] = join_line_items(line['items'], preserve_layout)
@@ -1435,7 +1855,14 @@ def reflow_paragraph_lines(lines: list[dict[str, Any]]) -> str:
         if previous_line and previous_line.get('page') == line.get('page'):
             gap = line['bbox']['top'] - previous_line['bbox']['bottom']
 
-        if current and previous_line and (gap > median_height * 1.35 or not is_paragraph_continuation(current, line_text)):
+        if (
+            current
+            and previous_line
+            and (
+                gap > median_height * 1.35
+                or not is_paragraph_continuation(current, line_text)
+            )
+        ):
             paragraphs.append(current.strip())
             current = line_text
         elif current:
@@ -1454,7 +1881,9 @@ def reflow_paragraph_lines(lines: list[dict[str, Any]]) -> str:
     return '\n\n'.join(paragraphs).strip()
 
 
-def render_line_breaks(detections: list[dict[str, Any]], preserve_layout: bool = True) -> str:
+def render_line_breaks(
+    detections: list[dict[str, Any]], preserve_layout: bool = True
+) -> str:
     lines = lines_with_text(detections, preserve_layout)
     if not lines:
         return ''
@@ -1492,12 +1921,16 @@ def detect_column_groups(lines: list[dict[str, Any]]) -> list[list[dict[str, Any
     ordered_groups: list[list[dict[str, Any]]] = []
     for _page, page_lines in sorted(groups_by_page.items()):
         lefts = sorted(line['bbox']['left'] for line in page_lines)
-        gaps = [(lefts[index + 1] - lefts[index], index) for index in range(len(lefts) - 1)]
+        gaps = [
+            (lefts[index + 1] - lefts[index], index) for index in range(len(lefts) - 1)
+        ]
         if not gaps:
             ordered_groups.append(page_lines)
             continue
         widest_gap, split_index = max(gaps)
-        page_width = max(line['bbox']['right'] for line in page_lines) - min(line['bbox']['left'] for line in page_lines)
+        page_width = max(line['bbox']['right'] for line in page_lines) - min(
+            line['bbox']['left'] for line in page_lines
+        )
         if widest_gap < max(80, page_width * 0.18):
             ordered_groups.append(page_lines)
             continue
@@ -1507,7 +1940,9 @@ def detect_column_groups(lines: list[dict[str, Any]]) -> list[list[dict[str, Any
         right_column = [line for line in page_lines if line['bbox']['left'] >= split_x]
         for column in (left_column, right_column):
             if column:
-                column.sort(key=lambda line: (line['bbox']['top'], line['bbox']['left']))
+                column.sort(
+                    key=lambda line: (line['bbox']['top'], line['bbox']['left'])
+                )
                 ordered_groups.append(column)
 
     return ordered_groups or [lines]
@@ -1530,13 +1965,23 @@ def detect_table_rows_from_lines(lines: list[dict[str, Any]]) -> list[list[str]]
         items = line.get('items') or []
         if len(items) >= 2:
             widths = [max(len(item['text']), 1) for item in items]
-            gaps = [items[index + 1]['bbox']['left'] - items[index]['bbox']['right'] for index in range(len(items) - 1)]
-            char_widths = [max(items[index]['bbox']['width'] / widths[index], 4.0) for index in range(len(items) - 1)]
+            gaps = [
+                items[index + 1]['bbox']['left'] - items[index]['bbox']['right']
+                for index in range(len(items) - 1)
+            ]
+            char_widths = [
+                max(items[index]['bbox']['width'] / widths[index], 4.0)
+                for index in range(len(items) - 1)
+            ]
             if any(gap > char_widths[index] * 3.2 for index, gap in enumerate(gaps)):
                 rows.append([item['text'] for item in items])
                 continue
 
-        split_cells = [cell.strip() for cell in re.split(r'\s{2,}|\t+', line.get('text', '')) if cell.strip()]
+        split_cells = [
+            cell.strip()
+            for cell in re.split(r'\s{2,}|\t+', line.get('text', ''))
+            if cell.strip()
+        ]
         if len(split_cells) >= 2:
             rows.append(split_cells)
     return rows
@@ -1566,7 +2011,9 @@ def table_to_markdown(rows: list[list[str]]) -> str:
     def row_to_md(row: list[str]) -> str:
         return '| ' + ' | '.join(cell.replace('|', '\\|') for cell in row) + ' |'
 
-    return '\n'.join([row_to_md(header), row_to_md(separator), *[row_to_md(row) for row in body]])
+    return '\n'.join(
+        [row_to_md(header), row_to_md(separator), *[row_to_md(row) for row in body]]
+    )
 
 
 def extract_tables(detections: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -1578,24 +2025,46 @@ def extract_tables(detections: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for line in lines:
         rows = detect_table_rows_from_lines([line])
         if rows:
-            if current_page is not None and current_page != line.get('page') and current_rows:
+            if (
+                current_page is not None
+                and current_page != line.get('page')
+                and current_rows
+            ):
                 normalized = normalize_table_rows(current_rows)
                 if normalized:
-                    tables.append({'page': current_page, 'rows': normalized, 'markdown': table_to_markdown(normalized)})
+                    tables.append(
+                        {
+                            'page': current_page,
+                            'rows': normalized,
+                            'markdown': table_to_markdown(normalized),
+                        }
+                    )
                 current_rows = []
             current_page = line.get('page', 1)
             current_rows.extend(rows)
         elif current_rows:
             normalized = normalize_table_rows(current_rows)
             if normalized:
-                tables.append({'page': current_page or 1, 'rows': normalized, 'markdown': table_to_markdown(normalized)})
+                tables.append(
+                    {
+                        'page': current_page or 1,
+                        'rows': normalized,
+                        'markdown': table_to_markdown(normalized),
+                    }
+                )
             current_rows = []
             current_page = None
 
     if current_rows:
         normalized = normalize_table_rows(current_rows)
         if normalized:
-            tables.append({'page': current_page or 1, 'rows': normalized, 'markdown': table_to_markdown(normalized)})
+            tables.append(
+                {
+                    'page': current_page or 1,
+                    'rows': normalized,
+                    'markdown': table_to_markdown(normalized),
+                }
+            )
 
     return tables
 
@@ -1632,15 +2101,29 @@ def extract_form_fields_from_text(text: str) -> list[dict[str, str]]:
         if checkbox:
             marker = checkbox.group(1)
             checked = 'x' in marker.lower() or marker == '☑'
-            fields.append({'label': checkbox.group(2).strip(), 'value': 'checked' if checked else 'unchecked', 'type': 'checkbox'})
+            fields.append(
+                {
+                    'label': checkbox.group(2).strip(),
+                    'value': 'checked' if checked else 'unchecked',
+                    'type': 'checkbox',
+                }
+            )
             continue
         underline = re.match(r'^(.{2,50}?)[\s:]+_{3,}\s*(.*)$', clean)
         if underline:
-            fields.append({'label': underline.group(1).strip(), 'value': underline.group(2).strip(), 'type': 'blank'})
+            fields.append(
+                {
+                    'label': underline.group(1).strip(),
+                    'value': underline.group(2).strip(),
+                    'type': 'blank',
+                }
+            )
     return fields
 
 
-def render_detections(detections: list[dict[str, Any]], options: dict[str, Any], style: str) -> str:
+def render_detections(
+    detections: list[dict[str, Any]], options: dict[str, Any], style: str
+) -> str:
     if not detections:
         return ''
 
@@ -1673,7 +2156,13 @@ def render_detections(detections: list[dict[str, Any]], options: dict[str, Any],
     return reflow_paragraph_lines(lines)
 
 
-def build_code_result(code_type: str, data: Any, bbox: Any = None, quality: Any = None, source: str = 'Barcode Decoder') -> dict[str, Any] | None:
+def build_code_result(
+    code_type: str,
+    data: Any,
+    bbox: Any = None,
+    quality: Any = None,
+    source: str = 'Barcode Decoder',
+) -> dict[str, Any] | None:
     clean_data = decode_bytes(data).strip()
     if not clean_data:
         return None
@@ -1697,7 +2186,11 @@ def unique_code_key(code: dict[str, Any]) -> tuple[str, str]:
     return (code.get('type', ''), code.get('text', ''))
 
 
-def add_code_result(collection: list[dict[str, Any]], seen: set[tuple[str, str]], code: dict[str, Any] | None) -> None:
+def add_code_result(
+    collection: list[dict[str, Any]],
+    seen: set[tuple[str, str]],
+    code: dict[str, Any] | None,
+) -> None:
     if not code:
         return
     key = unique_code_key(code)
@@ -1791,14 +2284,28 @@ def decode_qr_with_opencv(image: Any) -> list[dict[str, Any]]:
             for index, payload in enumerate(decoded_info):
                 if not payload:
                     continue
-                bbox_points = points[index] if points is not None and len(points) > index else None
-                add_code_result(codes, seen, build_code_result('QRCODE', payload, bbox=bbox_points, source='OpenCV QR'))
+                bbox_points = (
+                    points[index]
+                    if points is not None and len(points) > index
+                    else None
+                )
+                add_code_result(
+                    codes,
+                    seen,
+                    build_code_result(
+                        'QRCODE', payload, bbox=bbox_points, source='OpenCV QR'
+                    ),
+                )
 
         try:
             payload, points, _ = detector.detectAndDecode(variant)
         except Exception:
             payload, points = '', None
-        add_code_result(codes, seen, build_code_result('QRCODE', payload, bbox=points, source='OpenCV QR'))
+        add_code_result(
+            codes,
+            seen,
+            build_code_result('QRCODE', payload, bbox=points, source='OpenCV QR'),
+        )
     return codes
 
 
@@ -1821,7 +2328,13 @@ def detect_codes(image_path: str, page: int = 1) -> list[dict[str, Any]]:
         code['page'] = page
         add_code_result(codes, seen, code)
 
-    codes.sort(key=lambda item: (item.get('page', 1), item.get('type', ''), item.get('text', '')))
+    codes.sort(
+        key=lambda item: (
+            item.get('page', 1),
+            item.get('type', ''),
+            item.get('text', ''),
+        )
+    )
     return codes
 
 
@@ -1832,45 +2345,93 @@ def score_ocr_result(result: dict[str, Any] | None, options: dict[str, Any]) -> 
     text = result.get('text', '')
     confidence = float(result.get('confidence') or 0)
     detections = result.get('detections') or []
-    line_bonus = min(result.get('lineCount', 0), 15) * (1.2 if options.get('preserveLayout') else 0.4)
+    detection_count = len(detections)
+    line_bonus = min(result.get('lineCount', 0), 15) * (
+        1.2 if options.get('preserveLayout') else 0.4
+    )
     length_bonus = min(len(text) / 30.0, 20.0)
-    structure_bonus = min(len(detections) / 6.0, 10.0)
-    return confidence + line_bonus + length_bonus + structure_bonus
+    structure_bonus = min(detection_count / 6.0, 10.0)
+    replacement_penalty = text.count('\ufffd') * 8.0
+    symbol_count = len(re.findall(r'[^\w\s.,;:!?\'"()/#@%&+$=\-\[\]{}<>|\\]', text))
+    symbol_penalty = min(symbol_count * 1.5, 20.0)
+    low_confidence_count = sum(
+        1 for item in detections if float(item.get('confidence') or 0) < 45
+    )
+    low_confidence_penalty = (
+        min((low_confidence_count / max(detection_count, 1)) * 18.0, 18.0)
+        if detections
+        else 0.0
+    )
+    very_short_penalty = 12.0 if len(text.strip()) < 8 else 0.0
+    return (
+        confidence
+        + line_bonus
+        + length_bonus
+        + structure_bonus
+        - replacement_penalty
+        - symbol_penalty
+        - low_confidence_penalty
+        - very_short_penalty
+    )
 
 
-def run_ocr_on_page(page: PreparedPage, options: dict[str, Any], has_gpu: bool, temp_dir: str) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+def fast_result_needs_fallback(result: dict[str, Any] | None) -> bool:
+    if not result or not result.get('text', '').strip():
+        return True
+
+    text = result.get('text', '')
+    confidence = float(result.get('confidence') or 0)
+    detections = result.get('detections') or []
+    weird_symbols = len(re.findall(r'[^\w\s.,;:!?\'"()/#@%&+$=\-\[\]{}<>|\\]', text))
+    low_confidence_count = sum(
+        1 for item in detections if float(item.get('confidence') or 0) < 45
+    )
+    low_confidence_ratio = low_confidence_count / max(len(detections), 1)
+
+    if confidence < 85:
+        return True
+    if len(text.strip()) < 20:
+        return True
+    if weird_symbols > max(8, len(text) * 0.06):
+        return True
+    if detections and low_confidence_ratio > 0.35:
+        return True
+    return False
+
+
+def run_ocr_on_page(
+    page: PreparedPage, options: dict[str, Any], has_gpu: bool, temp_dir: str
+) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
     mode = options.get('ocrMode')
     runners: list[Callable[[], dict[str, Any] | None]]
 
     if mode == 'fast':
+        tesseract_result = ocr_with_tesseract(
+            page.path, options, page.page_number, temp_dir
+        )
+        results = [tesseract_result] if tesseract_result else []
+        if fast_result_needs_fallback(tesseract_result):
+            paddle_result = ocr_with_paddleocr(
+                page.path, options, has_gpu, page.page_number
+            )
+            if paddle_result:
+                results.append(paddle_result)
+
+        if not results:
+            return None, []
+        best_result = max(results, key=lambda item: score_ocr_result(item, options))
+        return best_result, results
+    elif mode == 'balanced':
         runners = [
             lambda: ocr_with_tesseract(page.path, options, page.page_number, temp_dir),
             lambda: ocr_with_paddleocr(page.path, options, has_gpu, page.page_number),
         ]
-        results = []
-        for runner in runners:
-            result = runner()
-            if result:
-                return result, [result]
-        return None, []
-
-    if mode == 'balanced':
+    else:
         runners = [
-            lambda: ocr_with_paddleocr(page.path, options, has_gpu, page.page_number),
             lambda: ocr_with_tesseract(page.path, options, page.page_number, temp_dir),
+            lambda: ocr_with_paddleocr(page.path, options, has_gpu, page.page_number),
+            lambda: ocr_with_easyocr(page.path, options, has_gpu, page.page_number),
         ]
-        results = []
-        for runner in runners:
-            result = runner()
-            if result:
-                return result, [result]
-        return None, []
-
-    runners = [
-        lambda: ocr_with_paddleocr(page.path, options, has_gpu, page.page_number),
-        lambda: ocr_with_easyocr(page.path, options, has_gpu, page.page_number),
-        lambda: ocr_with_tesseract(page.path, options, page.page_number, temp_dir),
-    ]
 
     results = []
     for runner in runners:
@@ -1895,7 +2456,11 @@ def detect_language_from_text(text: str) -> dict[str, Any] | None:
         if not guesses:
             return None
         best = guesses[0]
-        return {'language': best.lang, 'confidence': round(float(best.prob) * 100, 2), 'source': 'langdetect'}
+        return {
+            'language': best.lang,
+            'confidence': round(float(best.prob) * 100, 2),
+            'source': 'langdetect',
+        }
     except Exception:
         pass
 
@@ -1925,7 +2490,14 @@ def analyze_warnings(
     custom_words = {word.lower() for word in options.get('customWords') or []}
     seen: set[tuple[str, str]] = set()
 
-    def add_warning(kind: str, message: str, severity: str = 'medium', sample: str = '', bbox: Any = None, page: int | None = None) -> None:
+    def add_warning(
+        kind: str,
+        message: str,
+        severity: str = 'medium',
+        sample: str = '',
+        bbox: Any = None,
+        page: int | None = None,
+    ) -> None:
         key = (kind, sample or message)
         if key in seen:
             return
@@ -1943,7 +2515,13 @@ def analyze_warnings(
         sample = detection.get('text', '')
         confidence = float(detection.get('confidence') or 0)
         words = re.findall(r"[\w'|]+", sample)
-        if confidence and confidence < 60 and not all(word_is_ignored(word, ignored_words, custom_words) for word in words):
+        if (
+            confidence
+            and confidence < 60
+            and not all(
+                word_is_ignored(word, ignored_words, custom_words) for word in words
+            )
+        ):
             add_warning(
                 'low_confidence',
                 f'Low-confidence OCR near "{sample[:60]}"',
@@ -1954,49 +2532,153 @@ def analyze_warnings(
             )
 
         if re.search(r'[�□■¤§]{1,}|[^\w\s.,;:!?\'"()/#@%&+$=\-\[\]{}<>|\\]', sample):
-            add_warning('weird_symbols', 'Unexpected symbols may be OCR noise', 'medium', sample=sample, bbox=detection.get('bbox'), page=detection.get('page'))
+            add_warning(
+                'weird_symbols',
+                'Unexpected symbols may be OCR noise',
+                'medium',
+                sample=sample,
+                bbox=detection.get('bbox'),
+                page=detection.get('page'),
+            )
 
         for word in words:
             if word_is_ignored(word, ignored_words, custom_words):
                 continue
             if re.search(r'[A-Za-z]0[A-Za-z]', word) or re.search(r'\dO\d', word):
-                add_warning('confusable', 'Possible 0/O OCR confusion', 'medium', sample=word, bbox=detection.get('bbox'), page=detection.get('page'))
-            if re.search(r'\d[lI|]\d', word) or re.search(r'[A-Za-z][1|][A-Za-z]', word):
-                add_warning('confusable', 'Possible 1/l/I/| OCR confusion', 'medium', sample=word, bbox=detection.get('bbox'), page=detection.get('page'))
+                add_warning(
+                    'confusable',
+                    'Possible 0/O OCR confusion',
+                    'medium',
+                    sample=word,
+                    bbox=detection.get('bbox'),
+                    page=detection.get('page'),
+                )
+            if re.search(r'\d[lI|]\d', word) or re.search(
+                r'[A-Za-z][1|][A-Za-z]', word
+            ):
+                add_warning(
+                    'confusable',
+                    'Possible 1/l/I/| OCR confusion',
+                    'medium',
+                    sample=word,
+                    bbox=detection.get('bbox'),
+                    page=detection.get('page'),
+                )
             if 'rn' in word and len(word) > 4:
-                add_warning('confusable', 'Possible rn/m OCR confusion', 'low', sample=word, bbox=detection.get('bbox'), page=detection.get('page'))
+                add_warning(
+                    'confusable',
+                    'Possible rn/m OCR confusion',
+                    'low',
+                    sample=word,
+                    bbox=detection.get('bbox'),
+                    page=detection.get('page'),
+                )
 
-    lines = [line.strip() for line in render_line_breaks(detections, True).splitlines() if line.strip()] if detections else [line.strip() for line in text.splitlines() if line.strip()]
+    lines = (
+        [
+            line.strip()
+            for line in render_line_breaks(detections, True).splitlines()
+            if line.strip()
+        ]
+        if detections
+        else [line.strip() for line in text.splitlines() if line.strip()]
+    )
     for index, line in enumerate(lines[:-1]):
         next_line = lines[index + 1]
-        if len(line) > 50 and not re.search(r'[.!?:;,"\')\]]$', line) and re.match(r'^[A-Z]', next_line):
-            add_warning('missing_punctuation', 'Line may be missing punctuation before the next sentence', 'low', sample=line[:80])
-        if line.endswith('-') or (line and next_line and line[-1].islower() and next_line[0].islower()):
-            add_warning('broken_wrapping', 'Line wrapping may need reflow', 'low', sample=f'{line[:45]} / {next_line[:45]}')
+        if (
+            len(line) > 50
+            and not re.search(r'[.!?:;,"\')\]]$', line)
+            and re.match(r'^[A-Z]', next_line)
+        ):
+            add_warning(
+                'missing_punctuation',
+                'Line may be missing punctuation before the next sentence',
+                'low',
+                sample=line[:80],
+            )
+        if line.endswith('-') or (
+            line and next_line and line[-1].islower() and next_line[0].islower()
+        ):
+            add_warning(
+                'broken_wrapping',
+                'Line wrapping may need reflow',
+                'low',
+                sample=f'{line[:45]} / {next_line[:45]}',
+            )
 
-    warnings.sort(key=lambda item: {'high': 0, 'medium': 1, 'low': 2}.get(item['severity'], 3))
+    warnings.sort(
+        key=lambda item: {'high': 0, 'medium': 1, 'low': 2}.get(item['severity'], 3)
+    )
     return warnings[:200]
 
 
 def compose_codes_text(codes: list[dict[str, Any]]) -> str:
     if not codes:
         return ''
-    return '\n'.join(f'{code.get("type", "CODE")}: {code.get("text", "")}' for code in codes)
+    return '\n'.join(
+        f'{code.get("type", "CODE")}: {code.get("text", "")}' for code in codes
+    )
 
 
-def build_markdown(text: str, codes: list[dict[str, Any]], tables: list[dict[str, Any]], key_values: list[dict[str, str]], form_fields: list[dict[str, str]]) -> str:
+def build_markdown(
+    text: str,
+    codes: list[dict[str, Any]],
+    tables: list[dict[str, Any]],
+    key_values: list[dict[str, str]],
+    form_fields: list[dict[str, str]],
+) -> str:
     sections: list[str] = []
     if codes:
-        sections.append('## Detected Codes\n\n' + '\n'.join(f'- **{code.get("type", "CODE")}**: `{code.get("text", "")}`' for code in codes))
+        sections.append(
+            '## Detected Codes\n\n'
+            + '\n'.join(
+                f'- **{code.get("type", "CODE")}**: `{code.get("text", "")}`'
+                for code in codes
+            )
+        )
     if key_values:
-        sections.append('## Key-Value Pairs\n\n' + '\n'.join(f'- **{item["key"]}**: {item["value"]}' for item in key_values))
+        sections.append(
+            '## Key-Value Pairs\n\n'
+            + '\n'.join(f'- **{item["key"]}**: {item["value"]}' for item in key_values)
+        )
     if form_fields:
-        sections.append('## Form Fields\n\n' + '\n'.join(f'- **{item["label"]}**: {item["value"]}' for item in form_fields))
+        sections.append(
+            '## Form Fields\n\n'
+            + '\n'.join(
+                f'- **{item["label"]}**: {item["value"]}' for item in form_fields
+            )
+        )
     if tables:
-        sections.append('## Tables\n\n' + '\n\n'.join(table['markdown'] for table in tables if table.get('markdown')))
+        sections.append(
+            '## Tables\n\n'
+            + '\n\n'.join(
+                table['markdown'] for table in tables if table.get('markdown')
+            )
+        )
     if text:
         sections.append('## Text\n\n' + text)
     return '\n\n'.join(sections).strip()
+
+
+def nonempty_lines(text: str) -> list[str]:
+    return [line.strip() for line in text.splitlines() if line.strip()]
+
+
+def docling_text_is_flattened(docling_text: str, ocr_text: str, style: str) -> bool:
+    if style != 'line_breaks' or not docling_text.strip() or not ocr_text.strip():
+        return False
+
+    docling_lines = nonempty_lines(docling_text)
+    ocr_lines = nonempty_lines(ocr_text)
+    if len(ocr_lines) < 3:
+        return False
+
+    longest_docling_line = max((len(line) for line in docling_lines), default=0)
+    if len(docling_lines) <= 1 and len(ocr_lines) > 1:
+        return True
+    if longest_docling_line > 160 and len(ocr_lines) > len(docling_lines):
+        return True
+    return False
 
 
 def finalize_result(
@@ -2016,15 +2698,25 @@ def finalize_result(
     style = options.get('outputStyle', 'paragraphs')
     rendered_text = render_detections(detections, options, style) if detections else ''
     if not rendered_text:
-        rendered_text = '\n\n'.join(result.get('text', '').strip() for result in page_results if result.get('text', '').strip())
+        rendered_text = '\n\n'.join(
+            result.get('text', '').strip()
+            for result in page_results
+            if result.get('text', '').strip()
+        )
     if not rendered_text and text_layer:
         rendered_text = text_layer
 
     method = 'No OCR'
     confidence = 0.0
     if page_results:
-        confidences = [float(result.get('confidence') or 0) for result in page_results if result.get('confidence') is not None]
-        confidence = round(sum(confidences) / len(confidences), 2) if confidences else 0.0
+        confidences = [
+            float(result.get('confidence') or 0)
+            for result in page_results
+            if result.get('confidence') is not None
+        ]
+        confidence = (
+            round(sum(confidences) / len(confidences), 2) if confidences else 0.0
+        )
         methods = []
         for result in page_results:
             if result.get('method') and result['method'] not in methods:
@@ -2033,24 +2725,39 @@ def finalize_result(
 
     if text_layer and (not rendered_text or options.get('ocrMode') == 'fast'):
         rendered_text = text_layer
-        method = 'PDF text layer' if method == 'No OCR' else f'{method} + PDF text layer'
+        method = (
+            'PDF text layer' if method == 'No OCR' else f'{method} + PDF text layer'
+        )
         confidence = max(confidence, 100.0)
 
-    if docling_result and (options.get('ocrMode') == 'document' or style in {'markdown', 'tables'}):
-        rendered_text = docling_result['text']
-        method = docling_result['method']
+    if docling_result and (
+        options.get('ocrMode') == 'document' or style in {'markdown', 'tables'}
+    ):
+        if docling_text_is_flattened(docling_result['text'], rendered_text, style):
+            method = f'{docling_result["method"]} + OCR line layout'
+        else:
+            rendered_text = docling_result['text']
+            method = docling_result['method']
         confidence = max(confidence, float(docling_result.get('confidence') or 0))
 
     tables = extract_tables(detections)
-    key_value_text = rendered_text if rendered_text else render_line_breaks(detections, True)
+    key_value_text = (
+        rendered_text if rendered_text else render_line_breaks(detections, True)
+    )
     key_values = extract_key_values_from_text(key_value_text)
     form_fields = extract_form_fields_from_text(key_value_text)
     markdown = build_markdown(rendered_text, codes, tables, key_values, form_fields)
 
     final_text = rendered_text.strip()
-    if codes and options.get('mergeCodesIntoText') and style not in {'json', 'markdown'}:
+    if (
+        codes
+        and options.get('mergeCodesIntoText')
+        and style not in {'json', 'markdown'}
+    ):
         codes_block = 'Detected Codes\n' + compose_codes_text(codes)
-        final_text = codes_block + (('\n\nExtracted Text\n' + final_text) if final_text else '')
+        final_text = codes_block + (
+            ('\n\nExtracted Text\n' + final_text) if final_text else ''
+        )
 
     json_data = {
         'sourcePath': source_path,
@@ -2132,7 +2839,9 @@ def process_prepared_pages(
     docling_result = extract_with_docling(source_path, options)
 
     for page in prepared_pages:
-        cleanup_actions.extend(f'Page {page.page_number}: {action}' for action in page.cleanup_actions)
+        cleanup_actions.extend(
+            f'Page {page.page_number}: {action}' for action in page.cleanup_actions
+        )
         if options.get('detectCodes'):
             codes.extend(detect_codes(page.path, page.page_number))
         best, candidates = run_ocr_on_page(page, options, has_gpu, temp_dir)
@@ -2156,11 +2865,19 @@ def process_prepared_pages(
 
 def process_single_path(path: str, options: dict[str, Any]) -> dict[str, Any]:
     if not os.path.exists(path):
-        return {'error': f'File not found: {path}', 'success': False, 'sourcePath': path}
+        return {
+            'error': f'File not found: {path}',
+            'success': False,
+            'sourcePath': path,
+        }
 
     suffix = Path(path).suffix.lower()
     if suffix not in SUPPORTED_EXTENSIONS:
-        return {'error': f'Unsupported file type: {suffix}', 'success': False, 'sourcePath': path}
+        return {
+            'error': f'Unsupported file type: {suffix}',
+            'success': False,
+            'sourcePath': path,
+        }
 
     with tempfile.TemporaryDirectory(prefix='text_recognition_') as temp_dir:
         prepared_pages: list[PreparedPage] = []
@@ -2172,15 +2889,21 @@ def process_single_path(path: str, options: dict[str, Any]) -> dict[str, Any]:
                 page_options = options.copy()
                 page_options['_pageNumber'] = index
                 output_path = os.path.join(temp_dir, f'clean_page_{index:04d}.png')
-                prepared_pages.append(preprocess_image(rendered_path, output_path, page_options))
+                prepared_pages.append(
+                    preprocess_image(rendered_path, output_path, page_options)
+                )
         else:
             output_path = os.path.join(temp_dir, 'clean_image.png')
             prepared_pages.append(preprocess_image(path, output_path, options))
 
-        return process_prepared_pages(path, prepared_pages, options, temp_dir, text_layer=text_layer)
+        return process_prepared_pages(
+            path, prepared_pages, options, temp_dir, text_layer=text_layer
+        )
 
 
-def combine_batch_results(items: list[dict[str, Any]], options: dict[str, Any]) -> dict[str, Any]:
+def combine_batch_results(
+    items: list[dict[str, Any]], options: dict[str, Any]
+) -> dict[str, Any]:
     successful = [item for item in items if item.get('success')]
     if not successful:
         return {
@@ -2210,7 +2933,9 @@ def combine_batch_results(items: list[dict[str, Any]], options: dict[str, Any]) 
 
     combined_text = '\n\n'.join(text_parts).strip()
     combined_markdown = '\n\n'.join(markdown_parts).strip()
-    average_confidence = round(sum(confidences) / len(confidences), 2) if confidences else 0.0
+    average_confidence = (
+        round(sum(confidences) / len(confidences), 2) if confidences else 0.0
+    )
 
     json_data = {
         'items': [item.get('jsonData') for item in successful if item.get('jsonData')],
@@ -2236,7 +2961,13 @@ def combine_batch_results(items: list[dict[str, Any]], options: dict[str, Any]) 
         'warnings': all_warnings[:400],
         'confidence': average_confidence,
         'method': 'Batch OCR',
-        'availableEngines': sorted({engine for item in successful for engine in item.get('availableEngines', [])}),
+        'availableEngines': sorted(
+            {
+                engine
+                for item in successful
+                for engine in item.get('availableEngines', [])
+            }
+        ),
         'items': items,
         'fileCount': len(items),
         'successCount': len(successful),
@@ -2263,19 +2994,23 @@ def process_inputs(paths: list[str], options: dict[str, Any]) -> dict[str, Any]:
         try:
             items.append(process_single_path(path, options))
         except Exception as error:
-            items.append({
-                'error': str(error),
-                'traceback': traceback.format_exc(limit=4),
-                'success': False,
-                'sourcePath': path,
-            })
+            items.append(
+                {
+                    'error': str(error),
+                    'traceback': traceback.format_exc(limit=4),
+                    'success': False,
+                    'sourcePath': path,
+                }
+            )
 
     if len(items) == 1:
         return items[0]
     return combine_batch_results(items, options)
 
 
-def process_image(image_path: str, options: dict[str, Any] | None = None) -> dict[str, Any]:
+def process_image(
+    image_path: str, options: dict[str, Any] | None = None
+) -> dict[str, Any]:
     scan_options = DEFAULT_OPTIONS.copy()
     scan_options['preprocessing'] = DEFAULT_PREPROCESSING.copy()
     if options:
@@ -2295,21 +3030,67 @@ def parse_cli_arguments(argv: list[str]) -> tuple[list[str], dict[str, Any], boo
         options = load_options(argv[1])
         return [argv[0]], options, True
 
-    parser = argparse.ArgumentParser(description='OCR images, folders, and PDFs locally.')
+    parser = argparse.ArgumentParser(
+        description='OCR images, folders, and PDFs locally.'
+    )
     parser.add_argument('paths', nargs='+', help='Image, PDF, or folder paths to OCR')
-    parser.add_argument('--mode', choices=['fast', 'balanced', 'best', 'document'], default='best')
-    parser.add_argument('--output-style', choices=['plain', 'line_breaks', 'paragraphs', 'columns', 'tables', 'form_fields', 'key_values', 'markdown', 'json'], default='paragraphs')
-    parser.add_argument('--languages', default='en', help='Comma-separated language codes, for example en,es,fr')
-    parser.add_argument('--auto-language', action='store_true', help='Post-detect language from recognized text')
-    parser.add_argument('--no-codes', action='store_true', help='Disable QR/barcode decoding')
-    parser.add_argument('--no-layout', action='store_true', help='Do not preserve line breaks/gaps')
-    parser.add_argument('--use-docling', action='store_true', help='Use Docling when installed for document layout parsing')
-    parser.add_argument('--region-json', default=None, help='Region JSON with x,y,width,height and optional sourceWidth/sourceHeight')
+    parser.add_argument(
+        '--mode', choices=['fast', 'balanced', 'best', 'document'], default='best'
+    )
+    parser.add_argument(
+        '--output-style',
+        choices=[
+            'plain',
+            'line_breaks',
+            'paragraphs',
+            'columns',
+            'tables',
+            'form_fields',
+            'key_values',
+            'markdown',
+            'json',
+        ],
+        default='paragraphs',
+    )
+    parser.add_argument(
+        '--languages',
+        default='en',
+        help='Comma-separated language codes, for example en,es,fr',
+    )
+    parser.add_argument(
+        '--auto-language',
+        action='store_true',
+        help='Post-detect language from recognized text',
+    )
+    parser.add_argument(
+        '--no-codes', action='store_true', help='Disable QR/barcode decoding'
+    )
+    parser.add_argument(
+        '--no-layout', action='store_true', help='Do not preserve line breaks/gaps'
+    )
+    parser.add_argument(
+        '--use-docling',
+        action='store_true',
+        help='Use Docling when installed for document layout parsing',
+    )
+    parser.add_argument(
+        '--region-json',
+        default=None,
+        help='Region JSON with x,y,width,height and optional sourceWidth/sourceHeight',
+    )
     parser.add_argument('--max-pages', type=int, default=100)
     parser.add_argument('--pdf-dpi', type=int, default=None)
-    parser.add_argument('--custom-words', default='', help='Comma/newline separated custom words')
-    parser.add_argument('--ignored-words', default='', help='Comma/newline separated ignored warning words')
-    parser.add_argument('--raw-json', action='store_true', help='Print the full JSON result object')
+    parser.add_argument(
+        '--custom-words', default='', help='Comma/newline separated custom words'
+    )
+    parser.add_argument(
+        '--ignored-words',
+        default='',
+        help='Comma/newline separated ignored warning words',
+    )
+    parser.add_argument(
+        '--raw-json', action='store_true', help='Print the full JSON result object'
+    )
     args = parser.parse_args(argv)
 
     options = load_options(None)
@@ -2338,21 +3119,25 @@ def parse_cli_arguments(argv: list[str]) -> tuple[list[str], dict[str, Any], boo
     return args.paths, options, args.raw_json or args.output_style == 'json'
 
 
+def emit_json(payload: dict[str, Any]) -> None:
+    print(json.dumps(payload, ensure_ascii=True))
+
+
 def main() -> None:
     if len(sys.argv) >= 2 and sys.argv[1] == '--doctor':
-        print(json.dumps(collect_environment_diagnostics(), ensure_ascii=False))
+        emit_json(collect_environment_diagnostics())
         sys.exit(0)
 
     paths, options, raw_json = parse_cli_arguments(sys.argv[1:])
     if not paths:
-        print(json.dumps({'error': 'No input path provided', 'success': False}))
+        emit_json({'error': 'No input path provided', 'success': False})
         sys.exit(1)
 
     result = process_inputs(paths, options)
     if raw_json:
-        print(json.dumps(result, ensure_ascii=False))
+        emit_json(result)
     else:
-        print(json.dumps(result, ensure_ascii=False))
+        emit_json(result)
     sys.exit(0 if result.get('success') else 1)
 
 

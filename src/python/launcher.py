@@ -6,13 +6,19 @@ Double-click this file to start the Electron application.
 
 import subprocess
 import sys
+import shutil
 from pathlib import Path
 
 
 def is_runnable_python(python_command):
     """Return whether the provided Python executable can be launched."""
     try:
-        result = subprocess.run([str(python_command), '--version'], capture_output=True, text=True, timeout=10)
+        result = subprocess.run(
+            [str(python_command), '--version'],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
         return result.returncode == 0
     except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
         return False
@@ -36,7 +42,9 @@ def summarize_command_output(result, limit=1200):
 def check_nodejs():
     """Check if Node.js is installed."""
     try:
-        result = subprocess.run(['node', '--version'], capture_output=True, text=True, timeout=5)
+        result = subprocess.run(
+            ['node', '--version'], capture_output=True, text=True, timeout=5
+        )
         return result.returncode == 0
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return False
@@ -45,10 +53,22 @@ def check_nodejs():
 def check_npm():
     """Check if npm is installed."""
     try:
-        result = subprocess.run(['npm', '--version'], capture_output=True, text=True, timeout=5)
+        result = subprocess.run(
+            [get_npm_command(), '--version'], capture_output=True, text=True, timeout=5
+        )
         return result.returncode == 0
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return False
+
+
+def get_npm_command():
+    """Return the npm executable path for subprocess usage."""
+    if sys.platform == 'win32':
+        for candidate in ('npm.cmd', 'npm.exe', 'npm'):
+            resolved = shutil.which(candidate)
+            if resolved:
+                return resolved
+    return shutil.which('npm') or 'npm'
 
 
 def ensure_project_python(project_root):
@@ -71,7 +91,9 @@ def ensure_project_python(project_root):
             print('Creating project virtual environment...')
         command.append(str(venv_dir))
 
-        result = subprocess.run(command, cwd=project_root, capture_output=True, text=True, timeout=300)
+        result = subprocess.run(
+            command, cwd=project_root, capture_output=True, text=True, timeout=300
+        )
         if result.returncode != 0:
             show_error(
                 'Python Environment Failed',
@@ -87,7 +109,10 @@ def ensure_project_python(project_root):
         )
         return None
     except Exception as error:
-        show_error('Python Environment Failed', f'Could not create or repair the project virtual environment:\n{error}')
+        show_error(
+            'Python Environment Failed',
+            f'Could not create or repair the project virtual environment:\n{error}',
+        )
         return None
 
     return str(venv_python) if is_runnable_python(venv_python) else None
@@ -161,7 +186,10 @@ def install_python_dependencies(project_root, python_command):
         )
         return False
     except Exception as error:
-        show_error('Python Dependency Installation Failed', f'Could not install Python dependencies:\n{error}')
+        show_error(
+            'Python Dependency Installation Failed',
+            f'Could not install Python dependencies:\n{error}',
+        )
         return False
 
     return True
@@ -202,20 +230,35 @@ def install_npm_dependencies():
     script_dir = Path(__file__).parent.absolute()
     project_root = script_dir.parent.parent
     node_modules = project_root / 'node_modules'
+    npm_command = get_npm_command()
 
     if not node_modules.exists():
         try:
             print('Installing Node.js dependencies...')
-            result = subprocess.run(['npm', 'install'], cwd=project_root, capture_output=True, text=True, timeout=300)
+            result = subprocess.run(
+                [npm_command, 'install'],
+                cwd=project_root,
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
             if result.returncode != 0:
-                show_warning('npm Installation', f'npm install had warnings:\n{result.stderr[:500]}')
+                show_warning(
+                    'npm Installation',
+                    f'npm install had warnings:\n{result.stderr[:500]}',
+                )
                 return False
             return True
         except subprocess.TimeoutExpired:
-            show_error('npm Installation Failed', "npm install took too long. Please run 'npm install' manually.")
+            show_error(
+                'npm Installation Failed',
+                "npm install took too long. Please run 'npm install' manually.",
+            )
             return False
         except Exception as error:
-            show_error('npm Installation Failed', f'Could not install dependencies: {error}')
+            show_error(
+                'npm Installation Failed', f'Could not install dependencies: {error}'
+            )
             return False
     return True
 
@@ -281,11 +324,19 @@ def main():
     print('Starting application...\n')
 
     try:
+        npm_command = get_npm_command()
         if sys.platform == 'win32':
             create_no_window = 0x08000000
-            subprocess.Popen(['npm', 'start'], cwd=project_root, creationflags=create_no_window)
+            subprocess.Popen(
+                [npm_command, 'start'], cwd=project_root, creationflags=create_no_window
+            )
         else:
-            subprocess.Popen(['npm', 'start'], cwd=project_root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.Popen(
+                [npm_command, 'start'],
+                cwd=project_root,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
 
         print('OK: Application started successfully.')
         print('\nYou can close this window. The app will continue running.')

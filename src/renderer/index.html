@@ -1,287 +1,359 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Text Recognition Studio</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
     <div class="app-shell">
-        <header class="app-header">
-            <div>
-                <h1>Text Recognition Studio</h1>
-                <p class="subtitle">Local OCR, document parsing, code scanning, and batch extraction</p>
-            </div>
-            <div class="status-strip">
-                <span id="engineStatus">Idle</span>
-                <span id="queueStatus">0 files</span>
-            </div>
-        </header>
-
-        <main class="workspace">
-            <section class="input-pane">
-                <div class="input-toolbar">
-                    <button id="browseBtn" class="btn btn-primary" type="button">
-                        <span class="btn-icon">+</span>
-                        Files
-                    </button>
-                    <button id="folderBtn" class="btn btn-secondary" type="button">
-                        <span class="btn-icon">F</span>
-                        Folder
-                    </button>
-                    <button id="pasteBtn" class="btn btn-secondary" type="button">
-                        <span class="btn-icon">P</span>
-                        Paste
-                    </button>
-                    <button id="cameraBtn" class="btn btn-secondary" type="button">
-                        <span class="btn-icon">C</span>
-                        Camera
-                    </button>
-                    <input type="file" id="fileInput" multiple accept=".png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp,.heic,.heif,.pdf,image/*,application/pdf" title="Select files to scan">
-                    <input type="file" id="folderInput" webkitdirectory directory multiple title="Select folder to scan">
-                </div>
-
-                <div id="dropZone" class="drop-zone">
-                    <div class="drop-zone-content">
-                        <div class="drop-icon">T</div>
-                        <p class="primary-text">Drop images, PDFs, or folders</p>
-                        <p class="secondary-text">PNG, JPG, TIFF, HEIC, scanned PDFs, and batch folders</p>
-                    </div>
-                </div>
-
-                <div id="previewPanel" class="preview-panel">
-                    <div class="preview-head">
-                        <div>
-                            <strong id="previewName">No file selected</strong>
-                            <span id="regionStatus">Full page</span>
-                        </div>
-                        <button id="clearBtn" class="icon-btn" type="button" title="Clear">x</button>
-                    </div>
-                    <div id="imagePreview" class="image-preview">
-                        <img id="previewImg" alt="Preview">
-                        <div id="previewPlaceholder" class="preview-placeholder">Document selected</div>
-                        <div id="selectionOverlay" class="selection-overlay">
-                            <div id="selectionBox" class="selection-box"></div>
-                        </div>
-                    </div>
-                    <div class="region-actions">
-                        <button id="selectRegionBtn" class="btn btn-secondary" type="button">Select Region</button>
-                        <button id="scanRegionBtn" class="btn btn-primary" type="button" disabled>OCR Region</button>
-                        <button id="copyRegionBtn" class="btn btn-secondary" type="button" disabled>Copy Region</button>
-                        <button id="clearRegionBtn" class="btn btn-ghost" type="button" disabled>Clear Region</button>
-                    </div>
-                </div>
-
-                <div id="processingIndicator" class="processing">
-                    <div class="spinner"></div>
-                    <div>
-                        <strong>Scanning</strong>
-                        <span id="processingDetail">Preparing OCR pipeline...</span>
-                    </div>
-                </div>
-
-                <div class="settings-panel">
-                    <div class="settings-row compact">
-                        <label>
-                            <span>Mode</span>
-                            <select id="ocrMode">
-                                <option value="fast">Fast</option>
-                                <option value="balanced">Balanced</option>
-                                <option value="best" selected>Best</option>
-                                <option value="document">Document AI</option>
-                            </select>
-                        </label>
-                        <label>
-                            <span>Output</span>
-                            <select id="outputStyle">
-                                <option value="plain">Plain text</option>
-                                <option value="line_breaks">Line breaks</option>
-                                <option value="paragraphs" selected>Paragraphs</option>
-                                <option value="columns">Columns</option>
-                                <option value="tables">Tables</option>
-                                <option value="form_fields">Form fields</option>
-                                <option value="key_values">Key-values</option>
-                                <option value="markdown">Markdown</option>
-                                <option value="json">JSON</option>
-                            </select>
-                        </label>
-                    </div>
-
-                    <div class="settings-row compact">
-                        <label>
-                            <span>Language</span>
-                            <select id="languageMode">
-                                <option value="manual">Manual</option>
-                                <option value="auto">Auto-detect</option>
-                            </select>
-                        </label>
-                        <label>
-                            <span>Selected</span>
-                            <select id="languageSelect" multiple size="4">
-                                <option value="en" selected>English</option>
-                                <option value="es">Spanish</option>
-                                <option value="fr">French</option>
-                                <option value="de">German</option>
-                                <option value="it">Italian</option>
-                                <option value="pt">Portuguese</option>
-                                <option value="nl">Dutch</option>
-                                <option value="pl">Polish</option>
-                                <option value="ru">Russian</option>
-                                <option value="uk">Ukrainian</option>
-                                <option value="ja">Japanese</option>
-                                <option value="ko">Korean</option>
-                                <option value="zh">Chinese Simplified</option>
-                                <option value="zh_cht">Chinese Traditional</option>
-                                <option value="ar">Arabic</option>
-                                <option value="hi">Hindi</option>
-                                <option value="th">Thai</option>
-                                <option value="el">Greek</option>
-                                <option value="tr">Turkish</option>
-                            </select>
-                        </label>
-                    </div>
-
-                    <div class="toggle-grid">
-                        <label><input type="checkbox" id="preserveLayout" checked> Preserve layout</label>
-                        <label><input type="checkbox" id="detectCodes" checked> QR/barcodes</label>
-                        <label><input type="checkbox" id="mergeCodesIntoText" checked> Merge code payloads</label>
-                        <label><input type="checkbox" id="useDocling"> Docling parser</label>
-                    </div>
-
-                    <details class="settings-details" open>
-                        <summary>Image Cleanup</summary>
-                        <div class="toggle-grid">
-                            <label><input type="checkbox" data-cleanup="autoRotate" checked> Auto-rotate</label>
-                            <label><input type="checkbox" data-cleanup="deskew" checked> Deskew</label>
-                            <label><input type="checkbox" data-cleanup="cropBorders" checked> Crop borders</label>
-                            <label><input type="checkbox" data-cleanup="denoise" checked> De-noise</label>
-                            <label><input type="checkbox" data-cleanup="contrast" checked> Contrast</label>
-                            <label><input type="checkbox" data-cleanup="sharpen"> Sharpen</label>
-                            <label><input type="checkbox" data-cleanup="binarize"> Binarize</label>
-                            <label><input type="checkbox" data-cleanup="removeShadows" checked> Remove shadows</label>
-                            <label><input type="checkbox" data-cleanup="detectPageBoundaries" checked> Page boundaries</label>
-                        </div>
-                    </details>
-
-                    <details class="settings-details">
-                        <summary>Dictionaries</summary>
-                        <label class="textarea-label">
-                            <span>Custom words</span>
-                            <textarea id="customWords" rows="3" spellcheck="false"></textarea>
-                        </label>
-                        <label class="textarea-label">
-                            <span>Ignored warning words</span>
-                            <textarea id="ignoredWords" rows="3" spellcheck="false"></textarea>
-                        </label>
-                    </details>
-
-                    <details class="settings-details">
-                        <summary>Environment</summary>
-                        <div class="environment-actions">
-                            <button id="checkRuntimeBtn" class="btn btn-secondary" type="button">Check CUDA &amp; OCR runtime</button>
-                            <span id="runtimeStatus" class="runtime-status">Not checked</span>
-                        </div>
-                        <div id="runtimePanel" class="runtime-panel">
-                            <p class="runtime-placeholder">Run a check to see which CUDA wheels and OCR dependencies are installed and usable.</p>
-                        </div>
-                    </details>
-                </div>
-            </section>
-
-            <section class="results-pane">
-                <div class="results-header">
-                    <div>
-                        <h2>Output</h2>
-                        <div id="metadata" class="metadata">
-                            <span id="methodUsed">-</span>
-                            <span id="confidenceScore">-</span>
-                            <span id="languageDetected">-</span>
-                            <span id="charCount">0 chars</span>
-                        </div>
-                    </div>
-                    <div class="copy-actions">
-                        <button id="copyBtn" class="btn btn-success" type="button" disabled>Copy Text</button>
-                        <button id="copyMarkdownBtn" class="btn btn-secondary" type="button" disabled>Markdown</button>
-                        <button id="copyTableBtn" class="btn btn-secondary" type="button" disabled>Table</button>
-                        <button id="copyJsonBtn" class="btn btn-secondary" type="button" disabled>JSON</button>
-                        <button id="favoriteOutputBtn" class="btn btn-secondary" type="button" disabled>Favorite Output</button>
-                        <button id="revealSourceBtn" class="btn btn-secondary" type="button" disabled>Reveal Source</button>
-                        <button id="revealSavedBtn" class="btn btn-secondary" type="button" disabled>Reveal Saved</button>
-                        <select id="exportFormat" class="action-select" aria-label="Export format">
-                            <option value="current">Current view</option>
-                            <option value="text">OCR text</option>
-                            <option value="markdown">Markdown</option>
-                            <option value="table">Table</option>
-                            <option value="json">JSON</option>
-                        </select>
-                        <button id="saveOutputBtn" class="btn btn-secondary" type="button" disabled>Save File</button>
-                        <button id="exportAllBtn" class="btn btn-secondary" type="button" disabled>Export All</button>
-                        <button id="exportZipBtn" class="btn btn-secondary" type="button" disabled>Export Zip</button>
-                    </div>
-                </div>
-
-                <div id="batchPanel" class="batch-panel"></div>
-                <div id="detectedCodes" class="insight-panel"></div>
-                <div id="warningPanel" class="insight-panel"></div>
-                <div id="structurePanel" class="insight-panel"></div>
-                <div id="comparePanel" class="compare-panel"></div>
-
-                <div id="resultsContainer" class="results-container">
-                    <div class="empty-state">
-                        <div class="empty-icon">OCR</div>
-                        <p>Ready for a document</p>
-                    </div>
-                </div>
-            </section>
-
-            <aside class="history-pane">
-                <section class="favorites-section">
-                    <div class="history-header">
-                        <div>
-                            <h2>Favorites</h2>
-                            <span id="favoritesCount">0 saved outputs</span>
-                        </div>
-                        <button id="clearFavoritesBtn" class="btn btn-ghost" type="button" disabled>Clear</button>
-                    </div>
-                    <div id="favoritesList" class="favorites-list">
-                        <div class="history-empty">Favorited outputs will appear here.</div>
-                    </div>
-                </section>
-
-                <section class="history-section">
-                <div class="history-header">
-                    <div>
-                        <h2>History</h2>
-                        <span id="historyCount">0 recent scans</span>
-                    </div>
-                    <div class="history-header-actions">
-                        <input id="historySearch" class="history-search" type="search" placeholder="Search history" aria-label="Search history">
-                        <button id="clearHistoryBtn" class="btn btn-ghost" type="button" disabled>Clear</button>
-                    </div>
-                </div>
-                <div id="historyList" class="history-list">
-                    <div class="history-empty">Recent scans will appear here.</div>
-                </div>
-                </section>
-            </aside>
-        </main>
-
-        <div id="cameraModal" class="modal" aria-hidden="true">
-            <div class="modal-body">
-                <div class="modal-head">
-                    <h2>Camera Capture</h2>
-                    <button id="closeCameraBtn" class="icon-btn" type="button" title="Close">x</button>
-                </div>
-                <video id="cameraVideo" autoplay></video>
-                <div class="modal-actions">
-                    <button id="captureBtn" class="btn btn-primary" type="button">Capture</button>
-                    <button id="cancelCameraBtn" class="btn btn-secondary" type="button">Cancel</button>
-                </div>
-            </div>
+      <header class="app-header">
+        <div>
+          <h1>Text Recognition Studio</h1>
+          <p class="subtitle">Local OCR for one image at a time</p>
         </div>
+        <div class="status-strip">
+          <span id="engineStatus">Idle</span>
+          <span id="queueStatus">0 images</span>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <section class="input-pane">
+          <div class="input-toolbar">
+            <button id="browseBtn" class="btn btn-primary" type="button">
+              Image
+            </button>
+            <button id="pasteBtn" class="btn btn-secondary" type="button">
+              Paste
+            </button>
+            <button id="cameraBtn" class="btn btn-secondary" type="button">
+              Camera
+            </button>
+            <input
+              type="file"
+              id="fileInput"
+              accept=".png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp,.heic,.heif,image/*"
+              title="Select an image to scan"
+            />
+          </div>
+
+          <div id="dropZone" class="drop-zone">
+            <div class="drop-zone-content">
+              <div class="drop-icon">T</div>
+              <p class="primary-text">Drop one image</p>
+              <p class="secondary-text">
+                PNG, JPG, TIFF, WEBP, HEIC, paste, or camera capture
+              </p>
+            </div>
+          </div>
+
+          <div id="previewPanel" class="preview-panel">
+            <div class="preview-head">
+              <div>
+                <strong id="previewName">No file selected</strong>
+                <span id="regionStatus"></span>
+              </div>
+              <button
+                id="clearBtn"
+                class="icon-btn"
+                type="button"
+                title="Clear"
+              >
+                x
+              </button>
+            </div>
+            <div id="imagePreview" class="image-preview">
+              <img id="previewImg" alt="Preview" />
+              <div id="previewPlaceholder" class="preview-placeholder">
+                Document selected
+              </div>
+              <div id="selectionOverlay" class="selection-overlay">
+                <div id="selectionBox" class="selection-box"></div>
+              </div>
+            </div>
+            <div class="region-actions">
+              <button
+                id="scanImageBtn"
+                class="btn btn-primary"
+                type="button"
+                disabled
+              >
+                Scan Image
+              </button>
+              <button
+                id="selectRegionBtn"
+                class="btn btn-secondary"
+                type="button"
+              >
+                Select Region
+              </button>
+              <button
+                id="scanRegionBtn"
+                class="btn btn-secondary"
+                type="button"
+                disabled
+              >
+                OCR Region
+              </button>
+            </div>
+          </div>
+
+          <div id="processingIndicator" class="processing">
+            <div class="spinner"></div>
+            <div>
+              <strong>Scanning</strong>
+              <span id="processingDetail">Preparing OCR pipeline...</span>
+            </div>
+          </div>
+
+          <div class="settings-panel">
+            <input type="hidden" id="ocrMode" value="best" />
+            <div class="mode-grid" aria-label="OCR mode">
+              <button class="mode-option" type="button" data-mode="fast">
+                <span>Quick</span>
+                <span
+                  class="help-icon"
+                  title="Uses the fastest local OCR path and tuned page segmentation. Best for clean screenshots and short typed text."
+                  >?</span
+                >
+              </button>
+              <button class="mode-option" type="button" data-mode="balanced">
+                <span>Good</span>
+                <span
+                  class="help-icon"
+                  title="Compares quick OCR with PaddleOCR when available. A better default for clear documents without running every engine."
+                  >?</span
+                >
+              </button>
+              <button class="mode-option active" type="button" data-mode="best">
+                <span>Best</span>
+                <span
+                  class="help-icon"
+                  title="Runs the broadest local OCR set and keeps the strongest result. Slower, but usually better for mixed layouts."
+                  >?</span
+                >
+              </button>
+              <button class="mode-option" type="button" data-mode="document">
+                <span>Document AI</span>
+                <span
+                  class="help-icon"
+                  title="Uses Docling document parsing for layout-heavy pages, forms, and document screenshots. Slowest, but strongest for keeping the page organized."
+                  >?</span
+                >
+              </button>
+            </div>
+            <input type="hidden" id="outputStyle" value="line_breaks" />
+            <input type="hidden" id="languageMode" value="manual" />
+            <select id="languageSelect" multiple hidden>
+              <option value="en" selected>English</option>
+            </select>
+
+            <details class="settings-details advanced-settings">
+              <summary>Advanced settings</summary>
+              <div class="toggle-grid">
+                <label
+                  ><input type="checkbox" id="preserveLayout" checked />
+                  Preserve layout</label
+                >
+                <label
+                  ><input type="checkbox" id="detectCodes" checked />
+                  QR/barcodes</label
+                >
+                <label
+                  ><input type="checkbox" id="mergeCodesIntoText" checked />
+                  Merge code payloads</label
+                >
+                <label
+                  ><input type="checkbox" id="useDocling" /> Prefer Docling when
+                  available</label
+                >
+              </div>
+
+              <h3 class="settings-subhead">Image cleanup</h3>
+              <div class="toggle-grid">
+                <label
+                  ><input type="checkbox" data-cleanup="autoRotate" checked />
+                  Auto-rotate</label
+                >
+                <label
+                  ><input
+                    type="checkbox"
+                    data-cleanup="upscaleSmallText"
+                    checked
+                  />
+                  Upscale small text</label
+                >
+                <label
+                  ><input type="checkbox" data-cleanup="deskew" checked />
+                  Deskew</label
+                >
+                <label
+                  ><input type="checkbox" data-cleanup="cropBorders" checked />
+                  Crop borders</label
+                >
+                <label
+                  ><input type="checkbox" data-cleanup="denoise" checked />
+                  De-noise</label
+                >
+                <label
+                  ><input type="checkbox" data-cleanup="contrast" checked />
+                  Contrast</label
+                >
+                <label
+                  ><input type="checkbox" data-cleanup="sharpen" />
+                  Sharpen</label
+                >
+                <label
+                  ><input type="checkbox" data-cleanup="binarize" />
+                  Binarize</label
+                >
+                <label
+                  ><input
+                    type="checkbox"
+                    data-cleanup="removeShadows"
+                    checked
+                  />
+                  Remove shadows</label
+                >
+                <label
+                  ><input
+                    type="checkbox"
+                    data-cleanup="detectPageBoundaries"
+                    checked
+                  />
+                  Page boundaries</label
+                >
+              </div>
+
+              <details class="nested-settings">
+                <summary>
+                  OCR dictionaries
+                  <button
+                    class="help-icon"
+                    type="button"
+                    title="Custom words gives Tesseract extra expected vocabulary, such as names, product codes, or internal terms. Ignored words suppress quality warnings for words you know are valid."
+                  >
+                    ?
+                  </button>
+                </summary>
+                <label class="textarea-label">
+                  <span>Custom words</span>
+                  <textarea
+                    id="customWords"
+                    rows="3"
+                    spellcheck="false"
+                  ></textarea>
+                </label>
+                <label class="textarea-label">
+                  <span>Ignored warning words</span>
+                  <textarea
+                    id="ignoredWords"
+                    rows="3"
+                    spellcheck="false"
+                  ></textarea>
+                </label>
+              </details>
+
+              <details class="nested-settings">
+                <summary>Environment</summary>
+                <div class="environment-actions">
+                  <button
+                    id="checkRuntimeBtn"
+                    class="btn btn-secondary"
+                    type="button"
+                  >
+                    Check CUDA &amp; OCR runtime
+                  </button>
+                  <span id="runtimeStatus" class="runtime-status"
+                    >Not checked</span
+                  >
+                </div>
+                <div id="runtimePanel" class="runtime-panel">
+                  <p class="runtime-placeholder">
+                    Run a check to see which CUDA wheels and OCR dependencies
+                    are installed and usable.
+                  </p>
+                </div>
+              </details>
+            </details>
+          </div>
+        </section>
+
+        <section class="results-pane">
+          <div class="results-header">
+            <div>
+              <h2>Output</h2>
+              <div id="metadata" class="metadata">
+                <span id="methodUsed">-</span>
+                <span id="confidenceScore">-</span>
+                <span id="languageDetected">-</span>
+                <span id="charCount">0 chars</span>
+              </div>
+            </div>
+            <div class="copy-actions">
+              <button
+                id="copyBtn"
+                class="btn btn-success"
+                type="button"
+                disabled
+              >
+                Copy Text
+              </button>
+              <button
+                id="saveOutputBtn"
+                class="btn btn-secondary"
+                type="button"
+                disabled
+              >
+                Save File
+              </button>
+            </div>
+          </div>
+
+          <div id="batchPanel" class="batch-panel"></div>
+          <div id="detectedCodes" class="insight-panel"></div>
+
+          <div id="resultsContainer" class="results-container">
+            <div class="empty-state">
+              <div class="empty-icon">OCR</div>
+              <p>Ready for a document</p>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <div id="cameraModal" class="modal" aria-hidden="true">
+        <div class="modal-body">
+          <div class="modal-head">
+            <h2>Camera Capture</h2>
+            <button
+              id="closeCameraBtn"
+              class="icon-btn"
+              type="button"
+              title="Close"
+            >
+              x
+            </button>
+          </div>
+          <video id="cameraVideo" autoplay></video>
+          <div class="modal-actions">
+            <button id="captureBtn" class="btn btn-primary" type="button">
+              Capture
+            </button>
+            <button
+              id="cancelCameraBtn"
+              class="btn btn-secondary"
+              type="button"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script src="renderer.js"></script>
-</body>
+  </body>
 </html>

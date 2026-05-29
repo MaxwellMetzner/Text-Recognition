@@ -2,6 +2,8 @@
 
 Local Electron app for OCR, scanned PDFs, camera captures, QR/barcode decoding, layout-aware extraction, confidence review, and batch text export.
 
+![Text Recognition Studio screenshot](screenshot.jpg)
+
 ## What Changed
 
 - Multi-input OCR for images, PDFs, and dragged folders.
@@ -41,28 +43,28 @@ The app keeps OCR local:
 
 ## Prerequisites
 
-| Software | Version | Notes |
-| --- | --- | --- |
-| Node.js | 16+ | Electron shell |
-| Python | 3.9 - 3.12 | 3.11 is a safe target for OCR packages |
-| Tesseract OCR | Current | Needed for Fast mode and orientation detection |
-| zbar | Current | Needed by `pyzbar` on macOS/Linux |
+| Software      | Version    | Notes                                          |
+| ------------- | ---------- | ---------------------------------------------- |
+| Node.js       | 16+        | Electron shell                                 |
+| Python        | 3.9 - 3.12 | 3.11 is a safe target for OCR packages         |
+| Tesseract OCR | Current    | Needed for Fast mode and orientation detection |
+| zbar          | Current    | Needed by `pyzbar` on macOS/Linux              |
 
 ### Tesseract
 
-| Platform | Install |
-| --- | --- |
-| Windows | Install from `UB-Mannheim/tesseract` to `C:\Program Files\Tesseract-OCR` |
-| macOS | `brew install tesseract` |
-| Linux | `sudo apt-get install tesseract-ocr` |
+| Platform | Install                                                                  |
+| -------- | ------------------------------------------------------------------------ |
+| Windows  | Install from `UB-Mannheim/tesseract` to `C:\Program Files\Tesseract-OCR` |
+| macOS    | `brew install tesseract`                                                 |
+| Linux    | `sudo apt-get install tesseract-ocr`                                     |
 
 ### zbar
 
-| Platform | Install |
-| --- | --- |
-| Windows | Usually included with the `pyzbar` wheel |
-| macOS | `brew install zbar` |
-| Linux | `sudo apt-get install libzbar0` |
+| Platform | Install                                  |
+| -------- | ---------------------------------------- |
+| Windows  | Usually included with the `pyzbar` wheel |
+| macOS    | `brew install zbar`                      |
+| Linux    | `sudo apt-get install libzbar0`          |
 
 ## Install
 
@@ -79,7 +81,11 @@ For NVIDIA GPU acceleration, install the PyTorch and PaddlePaddle GPU wheels tha
 npm start
 ```
 
-The included launcher scripts also create or repair `.venv` and install missing Python requirements automatically before starting the app.
+To create or repair `.venv` and install missing Python requirements before starting the app:
+
+```sh
+python src/python/launcher.py
+```
 
 Development mode:
 
@@ -87,10 +93,21 @@ Development mode:
 npm run dev
 ```
 
-Launcher scripts:
+## Package
 
-- Windows: `run.bat`
-- macOS/Linux: `./run.sh`
+Build a Windows portable release in `release/`:
+
+```sh
+npm run release
+```
+
+Build an unpacked app directory for local packaging checks:
+
+```sh
+npm run pack
+```
+
+The packaged app still uses local OCR dependencies. Install Python requirements and Tesseract on the target machine before running OCR-heavy modes.
 
 ## CLI
 
@@ -112,26 +129,26 @@ Useful flags:
 
 ## Scan Modes
 
-| Mode | Behavior |
-| --- | --- |
-| Fast | Tesseract first, Paddle fallback if needed |
-| Balanced | PaddleOCR first, Tesseract fallback |
-| Best | PaddleOCR, EasyOCR, and Tesseract are scored against each other |
-| Document AI | Uses Docling when available, with OCR fallback |
+| Mode        | Behavior                                                        |
+| ----------- | --------------------------------------------------------------- |
+| Fast        | Tesseract first, Paddle fallback if needed                      |
+| Balanced    | PaddleOCR first, Tesseract fallback                             |
+| Best        | PaddleOCR, EasyOCR, and Tesseract are scored against each other |
+| Document AI | Uses Docling when available, with OCR fallback                  |
 
 ## Output Styles
 
-| Style | Use |
-| --- | --- |
-| Plain text | Reflow everything into one text stream |
-| Line breaks | Preserve source line breaks |
-| Paragraphs | Content-aware newline cleanup |
-| Columns | Read detected columns top-to-bottom |
-| Tables | Return detected table-like rows as Markdown |
-| Form fields | Return checkbox/blank-style fields |
-| Key-values | Return `Label: Value` pairs |
-| Markdown | Structured Markdown with codes, tables, pairs, and text |
-| JSON | Full structured payload |
+| Style       | Use                                                     |
+| ----------- | ------------------------------------------------------- |
+| Plain text  | Reflow everything into one text stream                  |
+| Line breaks | Preserve source line breaks                             |
+| Paragraphs  | Content-aware newline cleanup                           |
+| Columns     | Read detected columns top-to-bottom                     |
+| Tables      | Return detected table-like rows as Markdown             |
+| Form fields | Return checkbox/blank-style fields                      |
+| Key-values  | Return `Label: Value` pairs                             |
+| Markdown    | Structured Markdown with codes, tables, pairs, and text |
+| JSON        | Full structured payload                                 |
 
 ## Project Structure
 
@@ -139,9 +156,8 @@ Useful flags:
 Text-Recognition/
   package.json
   requirements.txt
-  run.bat
-  run.sh
   README.md
+  screenshot.jpg
   src/
     main/
       main.js

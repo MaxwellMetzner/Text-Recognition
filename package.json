@@ -1,20 +1,60 @@
 {
-  "name": "text-recognition-app",
+  "name": "text-recognition-studio",
   "version": "1.0.0",
+  "productName": "Text Recognition Studio",
   "description": "Local OCR studio with document parsing, batch processing, QR/barcode scanning, and camera capture",
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "ocr": "python src/python/ocr_engine.py"
+    "launcher": "python src/python/launcher.py",
+    "ocr": "python src/python/ocr_engine.py",
+    "format": "prettier --write \"README.md\" \"package.json\" \"src/main/**/*.js\" \"src/renderer/**/*.{html,js,css}\"",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "release": "electron-builder --win portable --publish never"
   },
-  "keywords": ["ocr", "text-recognition", "electron", "tesseract", "easyocr", "paddleocr", "docling", "barcode"],
+  "keywords": [
+    "ocr",
+    "text-recognition",
+    "electron",
+    "tesseract",
+    "easyocr",
+    "paddleocr",
+    "docling",
+    "barcode"
+  ],
   "author": "",
   "license": "MIT",
-  "dependencies": {
-    "electron": "^28.0.0"
-  },
   "devDependencies": {
-    "electron": "^28.0.0"
+    "electron": "^28.0.0",
+    "electron-builder": "^26.8.1",
+    "prettier": "^3.8.3"
+  },
+  "build": {
+    "appId": "com.textrecognition.studio",
+    "productName": "Text Recognition Studio",
+    "asar": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "package.json",
+      "requirements.txt",
+      "README.md",
+      "screenshot.jpg",
+      "src/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    }
   }
 }
