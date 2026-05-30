@@ -110,6 +110,7 @@ const state = {
   region: null,
   regionMode: false,
   dragStart: null,
+  selectionRenderFrame: null,
   lastCopyButton: null,
   cameraStream: null,
   environmentReport: null,
@@ -165,9 +166,14 @@ elements.dropZone.addEventListener("drop", (event) => {
   handleDrop(event);
 });
 
-elements.previewImg.addEventListener("load", () => {
-  renderSelectionFromRegion();
-});
+elements.previewImg.addEventListener("load", scheduleSelectionRender);
+window.addEventListener("resize", scheduleSelectionRender);
+
+if (window.ResizeObserver) {
+  const selectionResizeObserver = new ResizeObserver(scheduleSelectionRender);
+  selectionResizeObserver.observe(elements.previewPanel);
+  selectionResizeObserver.observe(elements.selectionOverlay);
+}
 
 elements.selectionOverlay.addEventListener("pointerdown", startRegionSelection);
 document.addEventListener("pointermove", updateRegionSelection);
@@ -894,6 +900,10 @@ function setRegionMode(enabled) {
 
 function clearRegion() {
   state.region = null;
+  if (state.selectionRenderFrame) {
+    cancelAnimationFrame(state.selectionRenderFrame);
+    state.selectionRenderFrame = null;
+  }
   elements.selectionBox.style.display = "none";
   elements.regionStatus.textContent = "";
   elements.scanRegionBtn.disabled = true;
@@ -997,6 +1007,17 @@ function renderSelectionFromRegion() {
   const bottom = top + (state.region.height / naturalHeight) * imageRect.height;
   elements.selectionBox.style.display = "block";
   updateSelectionBox({ x: left, y: top }, { x: right, y: bottom });
+}
+
+function scheduleSelectionRender() {
+  if (!state.region || state.selectionRenderFrame) {
+    return;
+  }
+
+  state.selectionRenderFrame = requestAnimationFrame(() => {
+    state.selectionRenderFrame = null;
+    renderSelectionFromRegion();
+  });
 }
 
 function getImageRect() {

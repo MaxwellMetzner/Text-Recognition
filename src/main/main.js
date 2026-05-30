@@ -12,37 +12,169 @@ const path = require("path");
 const { spawn, spawnSync } = require("child_process");
 
 let mainWindow;
+let cachedPythonCommand;
 
 function getPythonCommand() {
-  const projectRoot = path.join(__dirname, "..", "..");
-  const candidates =
-    process.platform === "win32"
-      ? [
-          {
-            command: path.join(projectRoot, ".venv", "Scripts", "python.exe"),
-            args: [],
-          },
-          { command: "py", args: ["-3"] },
-          { command: "python", args: [] },
-        ]
-      : [
-          {
-            command: path.join(projectRoot, ".venv", "bin", "python"),
-            args: [],
-          },
-          { command: "python3", args: [] },
-          { command: "python", args: [] },
-        ];
+  if (cachedPythonCommand) {
+    return cachedPythonCommand;
+  }
 
+  const candidates = buildPythonCandidates();
+  const runnableCandidates = candidates.filter((candidate) =>
+    isRunnablePython(candidate.command, candidate.args),
+  );
+  const ocrReadyCandidate = runnableCandidates.find((candidate) =>
+    hasCoreOcrPackages(candidate.command, candidate.args),
+  );
+
+  cachedPythonCommand =
+    ocrReadyCandidate ||
+    runnableCandidates[0] ||
+    candidates[candidates.length - 1];
+
+  cachedPythonCommand.ocrReady = Boolean(ocrReadyCandidate);
+  if (!cachedPythonCommand.ocrReady) {
+    cachedPythonCommand.packageError =
+      "No Python runtime with the required OCR packages was found.";
+  }
+
+  console.log(
+    "Using Python:",
+    cachedPythonCommand.command,
+    cachedPythonCommand.args.join(" "),
+    cachedPythonCommand.ocrReady
+      ? "(OCR packages ready)"
+      : "(OCR packages missing)",
+  );
+
+  return cachedPythonCommand;
+}
+
+function buildPythonCandidates() {
+  const candidates = [];
+  const roots = getCandidateRoots();
+  const venvRelativePath =
+    process.platform === "win32"
+      ? [".venv", "Scripts", "python.exe"]
+      : [".venv", "bin", "python"];
+  const envPython =
+    process.env.TEXT_RECOGNITION_PYTHON || process.env.OCR_PYTHON || "";
+
+  if (envPython) {
+    candidates.push({ command: envPython, args: [] });
+  }
+
+  for (const root of roots) {
+    candidates.push({
+      command: path.join(root, ...venvRelativePath),
+      args: [],
+    });
+  }
+
+  if (process.platform === "win32") {
+    candidates.push({ command: "py", args: ["-3.11"] });
+    candidates.push({ command: "py", args: ["-3"] });
+    candidates.push({ command: "python", args: [] });
+  } else {
+    candidates.push({ command: "python3", args: [] });
+    candidates.push({ command: "python", args: [] });
+  }
+
+  return dedupePythonCandidates(candidates);
+}
+
+function getCandidateRoots() {
+  const starts = [
+    path.join(__dirname, "..", ".."),
+    ...getPortableExecutableRoots(),
+    getAppPathSafely(),
+    process.resourcesPath,
+    process.execPath ? path.dirname(process.execPath) : "",
+    process.cwd(),
+  ].filter(Boolean);
+  const roots = [];
+  const seen = new Set();
+
+  for (const start of starts) {
+    let current = resolveDirectory(start);
+    while (current && !seen.has(current)) {
+      seen.add(current);
+      roots.push(current);
+      const parent = path.dirname(current);
+      if (parent === current) {
+        break;
+      }
+      current = parent;
+    }
+  }
+
+  return roots;
+}
+
+function getPortableExecutableRoots() {
+  const roots = [];
+  const portableExecutableDir = process.env.PORTABLE_EXECUTABLE_DIR;
+  const portableExecutableFile = process.env.PORTABLE_EXECUTABLE_FILE;
+
+  if (portableExecutableDir) {
+    roots.push(portableExecutableDir);
+  }
+
+  if (portableExecutableFile) {
+    roots.push(path.dirname(portableExecutableFile));
+  }
+
+  return roots;
+}
+
+function getAppPathSafely() {
+  try {
+    return app.getAppPath();
+  } catch (error) {
+    return "";
+  }
+}
+
+function resolveDirectory(candidatePath) {
+  if (!candidatePath) {
+    return "";
+  }
+
+  const resolved = path.resolve(candidatePath);
+  try {
+    if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
+      return path.dirname(resolved);
+    }
+  } catch (error) {
+    return path.dirname(resolved);
+  }
+
+  return resolved;
+}
+
+function dedupePythonCandidates(candidates) {
+  const seen = new Set();
+  return candidates.filter((candidate) => {
+    const key = `${candidate.command}\0${candidate.args.join("\0")}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+function isPathLikeCommand(command) {
   return (
-    candidates.find((candidate) =>
-      isRunnablePython(candidate.command, candidate.args),
-    ) || candidates[candidates.length - 1]
+    path.isAbsolute(command) ||
+    command.includes(path.sep) ||
+    command.includes("/") ||
+    command.includes("\\")
   );
 }
 
 function isRunnablePython(command, args = []) {
-  if (command.includes(path.sep) && !fs.existsSync(command)) {
+  if (isPathLikeCommand(command) && !fs.existsSync(command)) {
     return false;
   }
 
@@ -59,6 +191,29 @@ function isRunnablePython(command, args = []) {
     return (
       result.status === 0 && result.stdout.includes("copilot-python-check")
     );
+  } catch (error) {
+    return false;
+  }
+}
+
+function hasCoreOcrPackages(command, args = []) {
+  if (isPathLikeCommand(command) && !fs.existsSync(command)) {
+    return false;
+  }
+
+  try {
+    const script = [
+      "import importlib.util",
+      "missing = [name for name in ('PIL', 'cv2', 'pytesseract') if importlib.util.find_spec(name) is None]",
+      "print('ocr-core-check:' + ('ok' if not missing else ','.join(missing)))",
+      "raise SystemExit(1 if missing else 0)",
+    ].join("; ");
+    const result = spawnSync(command, [...args, "-c", script], {
+      encoding: "utf8",
+      timeout: 10000,
+      windowsHide: true,
+    });
+    return result.status === 0 && result.stdout.includes("ocr-core-check:ok");
   } catch (error) {
     return false;
   }
@@ -93,11 +248,27 @@ function replyWithScanResult(event, channel, dataString, errorString, code) {
 
 function runPythonJson(event, args, replyChannel) {
   const pythonCommand = getPythonCommand();
+  const isDoctor = args[0] === "--doctor";
+  if (!isDoctor && !pythonCommand.ocrReady) {
+    event.reply(replyChannel, {
+      error: `${pythonCommand.packageError} Start the app from the project launcher or install requirements.txt into the project .venv.`,
+      success: false,
+    });
+    return;
+  }
+
   const scriptPath = path.join(__dirname, "..", "python", "ocr_engine.py");
   const pythonProcess = spawn(
     pythonCommand.command,
     [...pythonCommand.args, scriptPath, ...args],
-    { windowsHide: true },
+    {
+      env: {
+        ...process.env,
+        PYTHONIOENCODING: "utf-8",
+        PYTHONUTF8: "1",
+      },
+      windowsHide: true,
+    },
   );
 
   let dataString = "";
