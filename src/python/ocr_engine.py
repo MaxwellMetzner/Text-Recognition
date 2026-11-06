@@ -23,6 +23,7 @@ import sys
 import tempfile
 import traceback
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from statistics import median
 from typing import Any, Callable
@@ -201,6 +202,7 @@ class PreparedPage:
     cleanup_actions: list[str]
 
 
+@lru_cache(maxsize=1)
 def check_gpu_availability() -> bool:
     """Check if CUDA is available for GPU acceleration."""
     try:
@@ -1296,16 +1298,26 @@ def get_easyocr_reader(languages: list[str], use_gpu: bool) -> Any:
     return EASYOCR_READERS[cache_key]
 
 
+@lru_cache(maxsize=1)
+def get_docling_converter() -> Any:
+    from docling.document_converter import DocumentConverter
+
+    return DocumentConverter()
+
+
 def get_paddle_ocr(language: str, use_gpu: bool, options: dict[str, Any]) -> Any:
     mode = options.get('ocrMode')
-    cache_key = (language, bool(use_gpu), mode, 'stable-engine-v3')
+    use_orientation_classify = mode in {'balanced', 'best', 'document'}
+    text_det_limit_side_len = 1800 if mode in {'best', 'document'} else 1440
+    cache_key = (
+        language, bool(use_gpu), use_orientation_classify, text_det_limit_side_len
+    )
     if cache_key in PADDLE_OCR_ENGINES:
         return PADDLE_OCR_ENGINES[cache_key]
 
     from paddleocr import PaddleOCR
 
     device = 'gpu:0' if use_gpu else 'cpu'
-    use_orientation_classify = mode in {'balanced', 'best', 'document'}
     common_kwargs = {
         'lang': language,
         'ocr_version': 'PP-OCRv5',
@@ -1313,7 +1325,7 @@ def get_paddle_ocr(language: str, use_gpu: bool, options: dict[str, Any]) -> Any
         'use_doc_orientation_classify': use_orientation_classify,
         'use_doc_unwarping': False,
         'use_textline_orientation': True,
-        'text_det_limit_side_len': 1800 if mode in {'best', 'document'} else 1440,
+        'text_det_limit_side_len': text_det_limit_side_len,
         'text_det_limit_type': 'max',
         'text_det_unclip_ratio': 2.0,
         'text_rec_score_thresh': 0.0,
@@ -1577,12 +1589,12 @@ def ocr_with_tesseract(
     temp_dir: str | None = None,
 ) -> dict[str, Any] | None:
     try:
-        from PIL import Image
         import pytesseract
 
         resolve_tesseract_path()
         language_codes = get_language_codes(options)
-        image = Image.open(image_path)
+        # Passing the prepared file avoids re-encoding it for every PSM/variant.
+        image = os.path.abspath(image_path)
         candidates = []
 
         for psm in get_tesseract_psm_values(options):
@@ -1734,9 +1746,7 @@ def extract_with_docling(path: str, options: dict[str, Any]) -> dict[str, Any] |
         return None
 
     try:
-        from docling.document_converter import DocumentConverter
-
-        converter = DocumentConverter()
+        converter = get_docling_converter()
         result = converter.convert(path)
         document = result.document
         text = export_docling_text(document, options.get('outputStyle', 'paragraphs'))
@@ -3156,7 +3166,41 @@ def emit_json(payload: dict[str, Any]) -> None:
     print(json.dumps(payload, ensure_ascii=True))
 
 
+def run_worker() -> None:
+    # Keep native library/model logs off the newline-delimited JSON channel too.
+    sys.stdout.flush()
+    with os.fdopen(os.dup(sys.stdout.fileno()), 'w', encoding='utf-8') as output:
+        os.dup2(sys.stderr.fileno(), sys.stdout.fileno())
+        for line in sys.stdin:
+            request_id = None
+            try:
+                request = json.loads(line)
+                request_id = request['id']
+                args = request['args']
+                if not isinstance(args, list) or not all(
+                    isinstance(arg, str) for arg in args
+                ):
+                    raise ValueError('Worker args must be a list of strings')
+                if args == ['--doctor']:
+                    result = collect_environment_diagnostics()
+                else:
+                    paths, options, _ = parse_cli_arguments(args)
+                    result = (
+                        process_inputs(paths, options)
+                        if paths
+                        else {'error': 'No input path provided', 'success': False}
+                    )
+            except (Exception, SystemExit) as error:
+                traceback.print_exc(file=sys.stderr)
+                result = {'error': f'OCR request failed: {error}', 'success': False}
+            output.write(json.dumps({'id': request_id, 'result': result}) + '\n')
+            output.flush()
+
+
 def main() -> None:
+    if sys.argv[1:] == ['--worker']:
+        run_worker()
+        return
     if len(sys.argv) >= 2 and sys.argv[1] == '--doctor':
         emit_json(collect_environment_diagnostics())
         sys.exit(0)

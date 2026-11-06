@@ -9,10 +9,12 @@ const {
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { spawn, spawnSync } = require("child_process");
+const { spawnSync } = require("child_process");
+const { PythonWorker } = require("./python-worker");
 
 let mainWindow;
 let cachedPythonCommand;
+let pythonWorker;
 
 function getPythonCommand() {
   if (cachedPythonCommand) {
@@ -20,12 +22,18 @@ function getPythonCommand() {
   }
 
   const candidates = buildPythonCandidates();
-  const runnableCandidates = candidates.filter((candidate) =>
-    isRunnablePython(candidate.command, candidate.args),
-  );
-  const ocrReadyCandidate = runnableCandidates.find((candidate) =>
-    hasCoreOcrPackages(candidate.command, candidate.args),
-  );
+  const runnableCandidates = [];
+  let ocrReadyCandidate;
+  for (const candidate of candidates) {
+    if (!isRunnablePython(candidate.command, candidate.args)) {
+      continue;
+    }
+    runnableCandidates.push(candidate);
+    if (hasCoreOcrPackages(candidate.command, candidate.args)) {
+      ocrReadyCandidate = candidate;
+      break;
+    }
+  }
 
   cachedPythonCommand =
     ocrReadyCandidate ||
@@ -219,73 +227,38 @@ function hasCoreOcrPackages(command, args = []) {
   }
 }
 
-function replyWithScanResult(event, channel, dataString, errorString, code) {
-  const trimmedOutput = dataString.trim();
-
-  if (trimmedOutput) {
-    try {
-      const result = JSON.parse(trimmedOutput);
-      event.reply(channel, {
-        ...result,
-        success: Boolean(result.success),
-      });
-      return;
-    } catch (error) {
-      event.reply(channel, {
-        error: `Failed to parse scan result: ${error.message}`,
-        success: false,
-      });
-      return;
+async function runPythonJson(event, args, replyChannel, requestId) {
+  const reply = (result) => {
+    if (!event.sender.isDestroyed()) {
+      event.reply(replyChannel, { ...result, requestId });
     }
-  }
-
-  event.reply(channel, {
-    error:
-      errorString.trim() || `Scan processing failed with exit code ${code}`,
-    success: false,
-  });
-}
-
-function runPythonJson(event, args, replyChannel) {
+  };
   const pythonCommand = getPythonCommand();
   const isDoctor = args[0] === "--doctor";
   if (!isDoctor && !pythonCommand.ocrReady) {
-    event.reply(replyChannel, {
+    reply({
       error: `${pythonCommand.packageError} Start the app from the project launcher or install requirements.txt into the project .venv.`,
       success: false,
     });
     return;
   }
 
-  const scriptPath = path.join(__dirname, "..", "python", "ocr_engine.py");
-  const pythonProcess = spawn(
-    pythonCommand.command,
-    [...pythonCommand.args, scriptPath, ...args],
-    {
-      env: {
-        ...process.env,
-        PYTHONIOENCODING: "utf-8",
-        PYTHONUTF8: "1",
-      },
-      windowsHide: true,
-    },
-  );
+  if (!pythonWorker) {
+    const scriptPath = path.join(__dirname, "..", "python", "ocr_engine.py");
+    pythonWorker = new PythonWorker(pythonCommand.command, [
+      ...pythonCommand.args,
+      scriptPath,
+      "--worker",
+    ]);
+  }
 
-  let dataString = "";
-  let errorString = "";
-
-  pythonProcess.stdout.on("data", (data) => {
-    dataString += data.toString();
-  });
-
-  pythonProcess.stderr.on("data", (data) => {
-    errorString += data.toString();
-    console.error("Python Error:", data.toString());
-  });
-
-  pythonProcess.on("close", (code) => {
-    replyWithScanResult(event, replyChannel, dataString, errorString, code);
-  });
+  try {
+    const result = await pythonWorker.request(args);
+    reply(result);
+  } catch (error) {
+    console.error("OCR worker failed:", error);
+    reply({ success: false, error: error.message });
+  }
 }
 
 function sanitizeFileName(fileName) {
@@ -442,6 +415,7 @@ function runScan(event, payload, replyChannel = "ocr-result") {
     event.reply(replyChannel, {
       error: "No image, PDF, or folder path provided for processing",
       success: false,
+      requestId: incoming.requestId,
     });
     return;
   }
@@ -453,7 +427,12 @@ function runScan(event, payload, replyChannel = "ocr-result") {
 
   console.log("Processing scan:", imagePath, scanOptions);
 
-  runPythonJson(event, [imagePath, JSON.stringify(scanOptions)], replyChannel);
+  runPythonJson(
+    event,
+    [imagePath, JSON.stringify(scanOptions)],
+    replyChannel,
+    incoming.requestId,
+  );
 }
 
 // Handle OCR processing
@@ -745,4 +724,6 @@ app.on("activate", () => {
   }
 });
 
-app.on("before-quit", () => {});
+app.on("before-quit", () => {
+  pythonWorker?.stop();
+});

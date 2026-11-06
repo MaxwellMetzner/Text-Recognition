@@ -186,6 +186,26 @@ Install zbar for your platform, then reinstall `pyzbar` if needed.
 
 PaddleOCR, EasyOCR, and Docling download or initialize model weights on first use.
 
+The app keeps one Python worker alive and reuses loaded OCR models and the Docling
+converter for subsequent scans. Switching modes or languages may load additional
+models; restarting the app clears them from memory. Requests are processed serially
+to avoid competing model loads, and duplicate scan clicks are disabled while scanning.
+OCR candidates, preprocessing, and quality settings are unchanged.
+
+Fast mode still tries multiple Tesseract page layouts and falls back to PaddleOCR
+when needed. Best and Document AI still compare all three OCR engines, so they
+remain slower than Fast even after model initialization.
+
+### Tests
+
+```sh
+npm test
+python -m unittest discover -s tests -p "test_*.py"
+```
+
+Use the project's Python environment for Python tests. The regression tests use
+stub models and do not download OCR weights.
+
 ### Document AI mode fails
 
 Run:

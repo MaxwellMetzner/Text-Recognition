@@ -114,6 +114,8 @@ const state = {
   lastCopyButton: null,
   cameraStream: null,
   environmentReport: null,
+  scanRequestId: 0,
+  scanning: false,
 };
 
 loadSavedSettings();
@@ -269,6 +271,12 @@ ipcRenderer.on("save-output-result", (event, result) => {
 });
 
 ipcRenderer.on("ocr-result", (event, result) => {
+  if (result.requestId !== state.scanRequestId) {
+    return;
+  }
+  state.scanning = false;
+  elements.scanImageBtn.disabled = !state.currentPaths.length;
+  elements.scanRegionBtn.disabled = !state.region;
   elements.processingIndicator.style.display = "none";
   elements.engineStatus.textContent = "Idle";
 
@@ -350,6 +358,8 @@ function handlePaths(paths) {
     showNotification("Using the first image only", "info");
   }
 
+  state.scanRequestId += 1;
+  state.scanning = false;
   state.currentPaths = [selectedPath];
   state.currentResult = null;
   state.extractedText = "";
@@ -412,6 +422,9 @@ function scanCurrentImage() {
 }
 
 function processPaths(paths, region = null) {
+  if (state.scanning) {
+    return;
+  }
   const scanPaths = paths.slice(0, 1);
   if (!scanPaths.length) {
     return;
@@ -424,6 +437,10 @@ function processPaths(paths, region = null) {
   state.jsonText = "";
   state.tableText = "";
   state.displayText = "";
+  state.scanning = true;
+  state.scanRequestId += 1;
+  elements.scanImageBtn.disabled = true;
+  elements.scanRegionBtn.disabled = true;
 
   elements.processingIndicator.style.display = "flex";
   elements.processingDetail.textContent = path.basename(scanPaths[0]);
@@ -438,6 +455,7 @@ function processPaths(paths, region = null) {
   }
 
   ipcRenderer.send("process-paths", {
+    requestId: state.scanRequestId,
     imagePath: scanPaths[0],
     paths: scanPaths,
     options,
@@ -581,6 +599,8 @@ function showError(message) {
 }
 
 function resetUI() {
+  state.scanRequestId += 1;
+  state.scanning = false;
   state.currentPaths = [];
   state.currentResult = null;
   state.extractedText = "";
@@ -599,6 +619,7 @@ function resetUI() {
   elements.fileInput.value = "";
   elements.engineStatus.textContent = "Idle";
   elements.scanImageBtn.disabled = true;
+  elements.scanRegionBtn.disabled = true;
   updateQueueStatus();
   setCopyButtons(false);
   syncExportControls();
@@ -968,7 +989,7 @@ function finishRegionSelection(event) {
   };
 
   elements.regionStatus.textContent = `${Math.round(state.region.width)} x ${Math.round(state.region.height)} px`;
-  elements.scanRegionBtn.disabled = false;
+  elements.scanRegionBtn.disabled = state.scanning;
   setRegionMode(false);
 }
 
